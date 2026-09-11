@@ -500,7 +500,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
     <div class="card" id="ofpCard">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>Subir OFP (PDF)</h3>
-      <p class="sub">Sube el PDF completo del despacho. Se busca la página "Planificación de Vuelos" y la página OFP para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.</p>
+      <p class="sub">Sube el PDF completo del despacho (formato nuevo con Documentación ETOPS, o el antiguo con página de planificación) para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.</p>
       <input type="file" id="ofpFile" accept="application/pdf" onchange="handleOfpUpload(this.files[0])"
         style="font-family:'Inter',sans-serif;font-size:12.5px;color:var(--muted);width:100%">
       <div id="ofpStatus" class="sub" style="margin-top:10px"></div>
@@ -544,6 +544,12 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
     </div>
 
     <div class="card">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M12 3v18"/></svg>Departure / Arrival</h3>
+      <p class="sub">Se rellena sola al subir el OFP, desde "Origen Destino Alter Weather y Notams" de Documentación ETOPS.</p>
+      <div id="etopsDocDepArr"><p class="wx-empty">Sube el OFP en Setup para ver esta información.</p></div>
+    </div>
+
+    <div class="card">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.4-9.3-9.7C1.1 8 2.6 4.5 6 3.8c2-.4 3.8.6 5 2.2 1.2-1.6 3-2.6 5-2.2 3.4.7 4.9 4.2 3.3 7.5C19 15.6 12 21 12 21z"/></svg>Alternativos</h3>
       <p class="sub">Añade tantos como necesites.</p>
       <div class="rows" id="altRows"></div>
@@ -551,6 +557,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
         Añadir alternativo
       </button>
+      <div id="etopsDocAltDetail" style="margin-top:12px"></div>
     </div>
 
     <div class="card">
@@ -567,13 +574,14 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Añadir punto ETOPS
         </button>
+        <div id="etopsDocEtopsDetail" style="margin-top:12px"></div>
       </div>
     </div>
 
     <div class="card">
-      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M8 17V9m4 8V5m4 12v-6"/></svg>Weather / Notams — Documentación ETOPS</h3>
-      <p class="sub">Se rellena sola al subir el OFP: departure/destino/alternativos y alternativos ETOPS, con pista, ventana, aproximación y mínimos, tal y como vienen en Documentación ETOPS.</p>
-      <div id="etopsDocView"><p class="wx-empty">Sube el OFP en Setup para ver esta tabla.</p></div>
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M8 17V9m4 8V5m4 12v-6"/></svg>Documentación ETOPS — Resumen</h3>
+      <p class="sub">Se rellena sola al subir el OFP.</p>
+      <div id="etopsDocView"><p class="wx-empty">Sube el OFP en Setup para ver esta información.</p></div>
     </div>
 
     <div class="card">
@@ -1839,15 +1847,9 @@ let pdfWorkerReady = null;
 async function ensurePdfWorker(){
   if(pdfWorkerReady) return pdfWorkerReady;
   pdfWorkerReady = (async()=>{
-    try{
-      const resp = await fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js');
-      const code = await resp.text();
-      const blob = new Blob([code], {type:'application/javascript'});
-      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
-    }catch(e){
-      // fall back to direct CDN URL; if that also fails, pdf.js will use its internal fake worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-    }
+    // a blob-URL worker fails to instantiate in some browsers/webviews (Safari/WebKit in particular) —
+    // pointing workerSrc straight at the CDN is simpler and more broadly compatible
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
   })();
   return pdfWorkerReady;
 }
@@ -2331,10 +2333,27 @@ async function extractEtopsDocFromPdf(pdf){
 }
 
 function parseEtopsDocSection(text){
-  const out = { depRwy:null, arrRwy:null, defects:[], originDestRows:[], etopsAltRows:[] };
+  const out = { depRwy:null, arrRwy:null, defects:[], originDestRows:[], etopsAltRows:[],
+    picCrew:null, costIndex:null, trayecto:null, reg:null, flightNum:null,
+    prevPax:null, flightKit:null, carga:null, dom:null, payload:null, ezfm:null, std:null };
   if(!text) return out;
 
-  let m = text.match(/DEP\s+RWY:\s*(\S+)/i);
+  let m = text.match(/PIC-CREW:\s*([^\n]+?)\s+CI\.:\s*(\S+)/i);
+  if(m){ out.picCrew = m[1].trim(); out.costIndex = m[2]; }
+  m = text.match(/Trayecto:\s*(\S+)\s+Reg:\s*(\S+)/i);
+  if(m){ out.trayecto = m[1]; out.reg = m[2]; }
+  m = text.match(/N[ºo]\s*Vuelo:\s*(\d+)/i);
+  if(m) out.flightNum = m[1];
+  m = text.match(/Prevision\s+Pax:\s*(\d+)[\s\S]{0,80}?Flight\s+Kit:\s*(\S+)/i);
+  if(m){ out.prevPax = m[1]; out.flightKit = m[2]; }
+  m = text.match(/Carga:\s*(\d+)\s+DOM:\s*(\d+)/i);
+  if(m){ out.carga = m[1]; out.dom = m[2]; }
+  m = text.match(/Payload:\s*(\d+)\s+EZFM:\s*(\d+)/i);
+  if(m){ out.payload = m[1]; out.ezfm = m[2]; }
+  m = text.match(/STD:\s*\d{2}\/\d{2}\/\d{4}\s+(\d{2}:\d{2}):\d{2}/i);
+  if(m) out.std = m[1];
+
+  m = text.match(/DEP\s+RWY:\s*(\S+)/i);
   if(m) out.depRwy = m[1].toUpperCase();
   m = text.match(/ARR\s+RWY:\s*(\S+)/i);
   if(m) out.arrRwy = m[1].toUpperCase();
@@ -2477,13 +2496,18 @@ async function handleOfpUpload(file){
       // ---- new format (from Sep 2026): no dedicated plan page — derive everything from the "OFP" page itself ----
       setOfpStatus('Formato nuevo detectado — buscando página OFP…');
       let ofpHeaderPageNum = null;
-      for(let p=1; p<=Math.min(pdf.numPages, 60); p++){
+      let firstPageSample = null;
+      const OFP_PAGE_MARKERS = [/FLIGHT PLAN BASED ON/i, /CALL SIGN:\s*\S/i, /TAXY\s*OUT\(/i];
+      for(let p=1; p<=pdf.numPages; p++){
         const page = await pdf.getPage(p);
         const t = await quickPageText(page);
-        if(/FLIGHT PLAN BASED ON/i.test(t)){ ofpHeaderPageNum = p; break; }
+        if(p===1) firstPageSample = t;
+        if(OFP_PAGE_MARKERS.some(re=>re.test(t))){ ofpHeaderPageNum = p; break; }
       }
       if(!ofpHeaderPageNum){
-        setOfpStatus('No se ha encontrado ni la página de planificación clásica ni la página OFP en este PDF. Rellena Setup a mano.', true);
+        setOfpStatus(`No se ha encontrado ni la página de planificación clásica ni la página OFP en este PDF (${pdf.numPages} páginas revisadas). Rellena Setup a mano.`, true);
+        // dump something to the debug box even on failure, so we can see what pdf.js actually extracted
+        document.getElementById('ofpDebugText').value = 'Ni "FLIGHT PLAN BASED ON" ni "CALL SIGN:" ni "TAXY OUT(" aparecieron en ninguna de las ' + pdf.numPages + ' páginas.\n\n--- Texto leído de la página 1 ---\n' + (firstPageSample || '(vacío)');
         return;
       }
       const headerPage = await pdf.getPage(ofpHeaderPageNum);
@@ -2576,6 +2600,9 @@ async function handleOfpUpload(file){
     // DEP RWY / ARR RWY: prefer the explicit "Documentación ETOPS" fields over the route-text-derived guess
     if(etopsDoc.depRwy) setVal('add_tofRwy', etopsDoc.depRwy.split('/')[1] || etopsDoc.depRwy);
     if(etopsDoc.arrRwy) setVal('add_lndRwy', etopsDoc.arrRwy.split('/')[1] || etopsDoc.arrRwy);
+    // reg/STD: Documentación ETOPS is now the primary source per the new dispatch format
+    if(etopsDoc.reg) setVal('add_reg', etopsDoc.reg);
+    if(etopsDoc.std){ setVal('std', etopsDoc.std); state.std = etopsDoc.std; }
     const extraMsg = (ofpHeader.flightNum ? 'Datos adicionales ✓.' : 'Datos adicionales: no se ha encontrado la cabecera OFP.') +
       (sidStar.sid || sidStar.star ? ` SID/STAR ✓ (${sidStar.sid||'—'}/${sidStar.star||'—'}).` : ' SID/STAR: no se han encontrado en el Navigation Log.');
 
@@ -4322,36 +4349,76 @@ function extractAircraftStatus(planText){
   return { raw, melRef: refM ? refM[1] : null };
 }
 
+function etopsDocRowHtml(label, r){
+  return `<div class="etopsdoc-row">
+    <div class="etopsdoc-row-head"><span class="etopsdoc-role">${label}</span><span class="mono">${r.airportRwy}</span></div>
+    <div class="etopsdoc-row-grid">
+      <div><span class="k">FROM</span>${r.from}</div>
+      <div><span class="k">TO</span>${r.to}</div>
+      <div><span class="k">APPROACH</span>${r.approach}</div>
+      <div><span class="k">WX MIN</span>${r.wxMin}</div>
+      <div><span class="k">FCST</span>${r.fcst}</div>
+    </div>
+  </div>`;
+}
+
 function renderEtopsDocView(){
+  renderEtopsDocHeader();
+  renderEtopsDocDepArr();
+  renderEtopsDocAltDetail();
+  renderEtopsDocEtopsDetail();
+}
+
+function renderEtopsDocHeader(){
   const el = document.getElementById('etopsDocView');
   if(!el) return;
   const doc = lastEtopsDoc;
-  if(!doc || (!doc.originDestRows.length && !doc.etopsAltRows.length)){
-    el.innerHTML = '<p class="wx-empty">No se ha encontrado la sección "Documentación ETOPS" en este PDF.</p>';
+  const hasHeader = doc && (doc.picCrew || doc.costIndex || doc.dom);
+  if(!hasHeader){
+    el.innerHTML = '<p class="wx-empty">No se ha encontrado la cabecera de "Documentación ETOPS" en este PDF.</p>';
     return;
   }
-  function rowHtml(label, r){
-    return `<div class="etopsdoc-row">
-      <div class="etopsdoc-row-head"><span class="etopsdoc-role">${label}</span><span class="mono">${r.airportRwy}</span></div>
-      <div class="etopsdoc-row-grid">
-        <div><span class="k">FROM</span>${r.from}</div>
-        <div><span class="k">TO</span>${r.to}</div>
-        <div><span class="k">APPROACH</span>${r.approach}</div>
-        <div><span class="k">WX MIN</span>${r.wxMin}</div>
-        <div><span class="k">FCST</span>${r.fcst}</div>
-      </div>
-    </div>`;
-  }
-  let html = '';
-  if(doc.originDestRows.length){
-    html += '<div class="etopsdoc-group-title">Departure / Destino / Alternativos</div>';
-    doc.originDestRows.forEach(r=> html += rowHtml(r.role, r));
-  }
-  if(doc.etopsAltRows.length){
-    html += '<div class="etopsdoc-group-title" style="margin-top:12px">Alternativos ETOPS</div>';
-    doc.etopsAltRows.forEach(r=> html += rowHtml('ETOPS ALTN', r));
-  }
+  let html = '<div class="etopsdoc-row-grid">';
+  if(doc.picCrew) html += `<div><span class="k">PIC-CREW</span>${doc.picCrew}</div>`;
+  if(doc.costIndex) html += `<div><span class="k">CI</span>${doc.costIndex}</div>`;
+  if(doc.prevPax) html += `<div><span class="k">PREVISIÓN PAX</span>${doc.prevPax}</div>`;
+  if(doc.flightKit) html += `<div><span class="k">FLIGHT KIT</span>${doc.flightKit}</div>`;
+  if(doc.carga) html += `<div><span class="k">CARGA</span>${doc.carga}</div>`;
+  if(doc.dom) html += `<div><span class="k">DOM</span>${doc.dom}</div>`;
+  if(doc.payload) html += `<div><span class="k">PAYLOAD</span>${doc.payload}</div>`;
+  if(doc.ezfm) html += `<div><span class="k">EZFM</span>${doc.ezfm}</div>`;
+  html += '</div>';
   el.innerHTML = html;
+}
+
+function renderEtopsDocDepArr(){
+  const el = document.getElementById('etopsDocDepArr');
+  if(!el) return;
+  const doc = lastEtopsDoc;
+  const rows = doc ? doc.originDestRows.filter(r=>r.role==='DEP'||r.role==='DEST') : [];
+  if(!rows.length){
+    el.innerHTML = '<p class="wx-empty">No se ha encontrado esta información en Documentación ETOPS.</p>';
+    return;
+  }
+  el.innerHTML = rows.map(r=>etopsDocRowHtml(r.role, r)).join('');
+}
+
+function renderEtopsDocAltDetail(){
+  const el = document.getElementById('etopsDocAltDetail');
+  if(!el) return;
+  const doc = lastEtopsDoc;
+  const rows = doc ? doc.originDestRows.filter(r=>r.role==='DEST ALTN') : [];
+  if(!rows.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="etopsdoc-group-title">Detalle (Documentación ETOPS)</div>' + rows.map(r=>etopsDocRowHtml('DEST ALTN', r)).join('');
+}
+
+function renderEtopsDocEtopsDetail(){
+  const el = document.getElementById('etopsDocEtopsDetail');
+  if(!el) return;
+  const doc = lastEtopsDoc;
+  const rows = doc ? doc.etopsAltRows : [];
+  if(!rows.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="etopsdoc-group-title">Detalle (Documentación ETOPS)</div>' + rows.map(r=>etopsDocRowHtml('ETOPS ALTN', r)).join('');
 }
 
 function renderAircraftStatus(){
