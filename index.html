@@ -570,6 +570,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
         Añadir alternativo
       </button>
+      <div id="etopsDocAltDetail" style="margin-top:12px"></div>
     </div>
 
     <div class="card">
@@ -586,20 +587,17 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Añadir punto ETOPS
         </button>
+        <div id="etopsDocEtopsDetail" style="margin-top:12px"></div>
       </div>
     </div>
 
     <div class="card">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.5-2V4L9 6m0 14l6-2m-6 2V6m6 12l5.5 2V6L15 4m0 14V4m0 2L9 4"/></svg>Ruta</h3>
-      <div class="pillgroup">
-        <div class="pill active" id="pillAts" onclick="setRouteMethod('ats')">Ruta ATS</div>
-        <div class="pill" id="pillOfp" onclick="setRouteMethod('ofp')">Ruta completa del OFP</div>
-      </div>
       <div class="field">
-        <label id="routeLabel">Pegar ruta ATS</label>
+        <label>Ruta OFP</label>
         <textarea id="routeText" placeholder="p. ej. LEMD DCT PDT UN725 ..." oninput="onSetupChange()"></textarea>
       </div>
-      <p class="sub" style="margin-top:10px;margin-bottom:0;">Próxima versión: carga directa del PDF del OFP con extracción automática de todos estos campos.</p>
+      <p class="sub" style="margin-top:10px;margin-bottom:0;">Se rellena sola al subir el OFP en Setup.</p>
     </div>
 
     <button class="btn btn-primary" style="width:100%" onclick="confirmSetup()">
@@ -1058,7 +1056,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 <script>
 let state = {
   dep:'', arr:'', std:'', eta:'', taxi:'', eet:'', mach:'',
-  alternates: [], etopsOn:false, etopsPoints: [], routeMethod:'ats', routeText:'',
+  alternates: [], etopsOn:false, etopsPoints: [], routeText:'',
   ofpWindows: {}
 };
 let altSeq = 0, etopsSeq = 0;
@@ -1067,45 +1065,36 @@ function trashIcon(){
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>';
 }
 
-function addAlt(icao, detail){
+function addAlt(icao){
   altSeq++;
   const id = 'alt'+altSeq;
   const div = document.createElement('div');
   div.className = 'row';
   div.id = id;
-  const detailHtml = detail ? etopsDocInlineDetail(detail) : '';
   div.innerHTML = `
     <div class="row-index">${document.querySelectorAll('#altRows .row').length+1}</div>
-    <div class="row-fields"><input placeholder="ICAO / IATA" value="${icao||''}" oninput="onSetupChange()">${detailHtml}</div>
+    <div class="row-fields"><input placeholder="ICAO / IATA" value="${icao||''}" oninput="onSetupChange()"></div>
     <button class="icon-btn" onclick="removeRow('${id}','altRows')">${trashIcon()}</button>`;
   document.getElementById('altRows').appendChild(div);
   onSetupChange();
 }
 
-function addEtops(apt, start, end, detail){
+function addEtops(apt, start, end){
   etopsSeq++;
   const id = 'etops'+etopsSeq;
   const div = document.createElement('div');
   div.className = 'row etops';
   div.id = id;
-  const detailHtml = detail ? etopsDocInlineDetail(detail, true) : '';
   div.innerHTML = `
     <div class="row-index">${document.querySelectorAll('#etopsRows .row').length+1}</div>
     <div class="row-fields">
       <input placeholder="Aeropuerto ETOPS" value="${apt||''}" oninput="onSetupChange()">
       <input type="time" placeholder="Inicio" value="${start||''}" oninput="onSetupChange()">
       <input type="time" placeholder="Fin" value="${end||''}" oninput="onSetupChange()">
-      ${detailHtml}
     </div>
     <button class="icon-btn" onclick="removeRow('${id}','etopsRows')">${trashIcon()}</button>`;
   document.getElementById('etopsRows').appendChild(div);
   onSetupChange();
-}
-
-// Inline read-only detail shown right inside an Alternativos/ETOPS row, when that airport came from
-// Documentación ETOPS — same AIRPORT/RWY/FROM/TO/APPROACH/WX MIN/FCST format as the Departure/Arrival card.
-function etopsDocInlineDetail(r, spanFull){
-  return `<div style="${spanFull?'grid-column:1/-1;':''}padding-top:7px;margin-top:2px;border-top:1px solid var(--line);">${etopsDocTableHtml([r])}</div>`;
 }
 
 function removeRow(id, containerId){
@@ -1121,14 +1110,6 @@ function onEtopsToggle(){
   document.getElementById('etopsBlock').style.display = on ? 'block' : 'none';
   if(on && document.querySelectorAll('#etopsRows .row').length===0){ addEtops(); }
   onSetupChange();
-}
-
-function setRouteMethod(m){
-  state.routeMethod = m;
-  document.getElementById('pillAts').classList.toggle('active', m==='ats');
-  document.getElementById('pillOfp').classList.toggle('active', m==='ofp');
-  document.getElementById('routeLabel').textContent = m==='ats' ? 'Pegar ruta ATS' : 'Pegar ruta completa del OFP';
-  document.getElementById('routeText').placeholder = m==='ats' ? 'p. ej. LEMD DCT PDT UN725 ...' : 'Pega aquí el bloque de ruta del OFP completo';
 }
 
 function readAlternates(){
@@ -2721,27 +2702,20 @@ function applyExtractedData(plan, timings){
   if(timings.taxi!=null) document.getElementById('taxi').value = timings.taxi;
   if(timings.eet) document.getElementById('eet').value = timings.eet;
   if(plan.routeText) document.getElementById('routeText').value = plan.routeText;
-  setRouteMethod('ats');
 
   // reset dynamic rows before refilling
   document.getElementById('altRows').innerHTML=''; altSeq=0;
   document.getElementById('etopsRows').innerHTML=''; etopsSeq=0;
 
   const alts = plan.airports.filter(a=>a.type==='ALT'||a.type==='ALTN');
-  alts.forEach(a=>{
-    const detail = lastEtopsDoc ? lastEtopsDoc.originDestRows.find(r=>r.role==='DEST ALTN' && r.airportRwy.split('/')[0]===a.icao) : null;
-    addAlt(a.icao, detail);
-  });
+  alts.forEach(a=> addAlt(a.icao));
   if(alts.length===0) addAlt();
 
   const etopsAirports = plan.airports.filter(a=>a.type==='ETOPS');
   if(etopsAirports.length){
     document.getElementById('etopsToggle').checked = true;
     document.getElementById('etopsBlock').style.display = 'block';
-    etopsAirports.forEach(a=>{
-      const detail = lastEtopsDoc ? lastEtopsDoc.etopsAltRows.find(r=>r.airportRwy.split('/')[0]===a.icao) : null;
-      addEtops(a.icao, a.from, a.to, detail);
-    });
+    etopsAirports.forEach(a=> addEtops(a.icao, a.from, a.to));
   }
 
   // store the OFP's own wx-relevant windows (UTC), keyed by ICAO — takes priority over the heuristic calc
@@ -3760,7 +3734,6 @@ function loadAppState(){
       ins[0].value = p.apt; ins[1].value = p.start; ins[2].value = p.end;
     });
   }
-  if(state.routeMethod) setRouteMethod(state.routeMethod);
 
   if(payload.extra) Object.keys(payload.extra).forEach(id=>setVal(id, payload.extra[id]));
   if(payload.fuel) Object.keys(payload.fuel).forEach(id=>setVal(id, payload.fuel[id]));
@@ -4145,6 +4118,133 @@ const QRH_T3_INFLIGHT = [null,1.3,2.0,3.4,4.9,6.2,7.1,7.3]; // "NO SPECIAL PROCE
 const QRH_T3_GROUND =   [null,13,20,34,49,62,71,73];
 const QRH_T3_BRAKETEMP = [2.4,2.4,2.6,3.1,3.7,4.3,4.8,4.9]; // "UP TO 2.4" for <=19/20, then per-bracket; 41-56:"5.0 TO 7.0", >=57:"7.1 & ABOVE"
 
+// ============ 787-8 (Category A Brakes) — Recommended Brake Cooling Schedule ============
+// Transcribed from Boeing 787 QRH PI-QRH.11.62-64 (787-8/TRENT1000-D & -G share identical tables —
+// verified both variants page-by-page, only the header label differs).
+const QRH8_WEIGHTS = [240,220,200,180,160,140,120];
+const QRH8_OATS = [0,10,15,20,30,40];
+const QRH8_SPEEDS = [100,120,140,160,180];
+const QRH8_PA_A = [0,5,10];
+const QRH8_PA_B = [10,12,14];
+
+const QRH8_TABLE1A = {
+240:{0:[32.8,37.6,43.3,44.5,51.6,60.0,57.7,67.2,78.5,71.7,83.5,97.6,86.1,99.9,116.1],
+     10:[33.8,38.9,44.8,46.0,53.3,62.0,59.6,69.4,81.1,74.1,86.3,100.7,88.9,103.0,119.4],
+     15:[34.4,39.5,45.5,46.8,54.2,63.0,60.6,70.6,82.4,75.3,87.6,102.2,90.3,104.5,121.0],
+     20:[34.9,40.1,46.2,47.5,55.1,64.0,61.6,71.7,83.6,76.5,89.0,103.7,91.7,106.0,122.5],
+     30:[35.9,41.2,47.6,48.9,56.7,66.0,63.4,73.8,86.1,78.8,91.6,106.5,94.3,108.9,125.5],
+     40:[36.2,41.7,48.3,49.6,57.7,67.2,64.5,75.2,87.8,80.3,93.3,108.3,96.1,110.6,126.8]},
+220:{0:[31.5,36.1,41.5,42.7,49.4,57.4,55.3,64.3,75.1,68.7,80.1,93.6,82.5,95.9,111.6],
+     10:[32.5,37.3,42.9,44.2,51.1,59.3,57.1,66.5,77.6,71.0,82.7,96.6,85.3,98.9,114.9],
+     15:[33.0,37.9,43.6,44.9,51.9,60.3,58.1,67.6,78.8,72.2,84.0,98.0,86.6,100.4,116.5],
+     20:[33.5,38.5,44.3,45.6,52.8,61.3,59.0,68.6,80.1,73.3,85.4,99.5,87.9,101.9,118.1],
+     30:[34.4,39.6,45.6,46.9,54.3,63.1,60.8,70.7,82.5,75.5,87.9,102.3,90.5,104.7,121.0],
+     40:[34.8,40.0,46.2,47.6,55.2,64.2,61.8,72.0,84.1,77.0,89.5,104.1,92.2,106.5,122.5]},
+200:{0:[29.1,33.3,38.2,39.4,45.4,52.6,50.8,59.0,68.8,63.2,73.7,86.2,76.0,88.5,103.3],
+     10:[30.0,34.4,39.5,40.7,47.0,54.4,52.5,61.0,71.1,65.4,76.2,89.0,78.5,91.4,106.5],
+     15:[30.5,34.9,40.1,41.3,47.7,55.3,53.4,62.0,72.3,66.5,77.4,90.4,79.8,92.8,108.0],
+     20:[31.0,35.5,40.8,42.0,48.5,56.2,54.2,63.0,73.4,67.5,78.6,91.8,81.0,94.2,109.5],
+     30:[31.8,36.5,41.9,43.2,49.9,57.9,55.8,64.9,75.6,69.5,81.0,94.4,83.4,96.9,112.4],
+     40:[32.1,36.8,42.4,43.7,50.6,58.8,56.7,66.1,77.1,70.8,82.5,96.2,85.1,98.7,114.1]},
+180:{0:[26.7,30.5,34.9,36.0,41.4,47.9,46.2,53.6,62.4,57.4,66.9,78.1,69.4,80.9,94.5],
+     10:[27.6,31.5,36.1,37.2,42.8,49.5,47.8,55.4,64.5,59.4,69.1,80.7,71.7,83.5,97.5],
+     15:[28.0,32.0,36.7,37.8,43.5,50.3,48.6,56.3,65.5,60.3,70.3,82.0,72.9,84.9,99.0],
+     20:[28.4,32.5,37.2,38.3,44.2,51.1,49.3,57.2,66.6,61.3,71.4,83.3,74.0,86.2,100.5],
+     30:[29.2,33.4,38.3,39.4,45.5,52.6,50.8,58.9,68.6,63.1,73.5,85.7,76.2,88.7,103.3],
+     40:[29.4,33.7,38.7,39.9,46.1,53.4,51.6,59.9,69.9,64.3,74.9,87.4,77.7,90.4,105.0]},
+160:{0:[24.4,27.7,31.7,32.6,37.4,43.1,41.7,48.2,56.0,51.6,60.0,69.9,62.2,72.5,84.7],
+     10:[25.1,28.6,32.7,33.7,38.7,44.6,43.1,49.9,57.9,53.3,62.0,72.3,64.3,74.9,87.5],
+     15:[25.5,29.1,33.2,34.2,39.3,45.3,43.8,50.7,58.8,54.2,63.0,73.5,65.3,76.1,88.8],
+     20:[25.9,29.5,33.7,34.7,39.9,46.0,44.5,51.5,59.7,55.1,64.0,74.6,66.4,77.3,90.2],
+     30:[26.6,30.3,34.7,35.7,41.1,47.4,45.8,53.0,61.5,56.7,65.9,76.9,68.3,79.6,92.8],
+     40:[26.7,30.5,35.0,36.1,41.5,48.0,46.4,53.8,62.6,57.6,67.1,78.3,69.6,81.1,94.6]},
+140:{0:[22.0,24.9,28.4,29.2,33.4,38.3,37.1,42.8,49.5,45.7,53.0,61.7,54.9,63.9,74.6],
+     10:[22.7,25.7,29.3,30.1,34.5,39.6,38.3,44.2,51.1,47.3,54.8,63.7,56.8,66.1,77.1],
+     15:[23.0,26.1,29.8,30.6,35.0,40.2,38.9,44.9,52.0,48.0,55.7,64.8,57.7,67.2,78.4],
+     20:[23.4,26.5,30.3,31.1,35.6,40.9,39.6,45.6,52.8,48.8,56.6,65.8,58.6,68.2,79.6],
+     30:[24.0,27.3,31.1,31.9,36.6,42.1,40.7,46.9,54.4,50.2,58.3,67.8,60.4,70.3,82.0],
+     40:[24.1,27.4,31.3,32.2,36.9,42.6,41.2,47.6,55.2,51.0,59.3,69.0,61.4,71.6,83.6]},
+120:{0:[19.6,22.2,25.2,25.7,29.3,33.6,32.4,37.2,42.9,39.7,45.9,53.1,47.5,55.1,64.1],
+     10:[20.2,22.9,26.0,26.6,30.3,34.7,33.5,38.5,44.3,41.0,47.4,54.9,49.1,57.0,66.3],
+     15:[20.5,23.2,26.4,27.0,30.8,35.2,34.0,39.1,45.1,41.7,48.2,55.8,49.9,57.9,67.4],
+     20:[20.8,23.6,26.8,27.4,31.2,35.8,34.6,39.7,45.8,42.3,48.9,56.7,50.7,58.8,68.5],
+     30:[21.3,24.2,27.5,28.1,32.1,36.8,35.5,40.8,47.1,43.6,50.4,58.4,52.2,60.6,70.5],
+     40:[21.4,24.3,27.7,28.3,32.4,37.1,35.9,41.3,47.8,44.1,51.1,59.4,53.0,61.6,71.8]}
+};
+
+const QRH8_TABLE1B = {
+240:{0:[43.3,45.9,48.8,60.0,63.8,67.9,78.5,83.6,89.2,97.6,104.0,110.9,116.1,123.3],
+     10:[44.8,47.5,50.4,62.0,66.0,70.2,81.1,86.4,92.1,100.7,107.2,114.2,119.4,126.6],
+     15:[45.5,48.3,51.3,63.0,67.0,71.4,82.4,87.7,93.5,102.2,108.7,115.7,121.0,128.2],
+     20:[46.2,49.0,52.1,64.0,68.1,72.5,83.6,89.1,94.9,103.7,110.2,117.3,122.5,129.8],
+     30:[47.6,50.5,53.6,66.0,70.1,74.7,86.1,91.7,97.6,106.5,113.2,120.3,125.5,132.7],
+     40:[48.3,51.2,54.5,67.2,71.4,76.1,87.8,93.4,99.4,108.3,114.8,121.8,126.8,133.6]},
+220:{0:[41.5,44.0,46.7,57.4,61.0,65.0,75.1,80.0,85.3,93.6,99.7,106.4,111.6,118.7,126.3],
+     10:[42.9,45.5,48.3,59.3,63.1,67.2,77.6,82.6,88.1,96.6,102.8,109.6,114.9,122.0,129.7],
+     15:[43.6,46.2,49.1,60.3,64.1,68.3,78.8,83.9,89.5,98.0,104.4,111.2,116.5,123.6,131.3],
+     20:[44.3,46.9,49.8,61.3,65.1,69.4,80.1,85.3,90.9,99.5,105.9,112.7,118.1,125.2,132.8],
+     30:[45.6,48.3,51.3,63.1,67.1,71.4,82.5,87.8,93.5,102.3,108.7,115.6,121.0,128.1,135.7],
+     40:[46.2,49.0,52.1,64.2,68.3,72.8,84.1,89.4,95.2,104.1,110.5,117.3,122.5,129.3,136.5]},
+200:{0:[38.2,40.5,42.9,52.6,55.9,59.5,68.8,73.3,78.1,86.2,91.9,98.0,103.3,110.0,117.2],
+     10:[39.5,41.8,44.3,54.4,57.8,61.5,71.1,75.7,80.7,89.0,94.8,101.1,106.5,113.2,120.5],
+     15:[40.1,42.5,45.1,55.3,58.8,62.5,72.3,76.9,82.0,90.4,96.2,102.6,108.0,114.8,122.1],
+     20:[40.8,43.2,45.8,56.2,59.7,63.5,73.4,78.1,83.3,91.8,97.7,104.1,109.5,116.4,123.7],
+     30:[41.9,44.4,47.1,57.9,61.5,65.4,75.6,80.5,85.7,94.4,100.4,106.9,112.4,119.3,126.7],
+     40:[42.4,45.0,47.8,58.8,62.6,66.6,77.1,82.0,87.4,96.2,102.2,108.7,114.1,120.9,127.9]},
+180:{0:[34.9,37.0,39.1,47.9,50.8,54.0,62.4,66.4,70.7,78.1,83.3,88.8,94.5,100.7,107.4],
+     10:[36.1,38.2,40.5,49.5,52.5,55.8,64.5,68.6,73.1,80.7,86.0,91.7,97.5,103.8,110.6],
+     15:[36.7,38.8,41.1,50.3,53.4,56.7,65.5,69.7,74.3,82.0,87.3,93.1,99.0,105.3,112.2],
+     20:[37.2,39.4,41.7,51.1,54.2,57.6,66.6,70.8,75.5,83.3,88.7,94.5,100.5,106.9,113.8],
+     30:[38.3,40.5,43.0,52.6,55.8,59.4,68.6,73.0,77.7,85.7,91.3,97.2,103.3,109.7,116.7],
+     40:[38.7,41.0,43.5,53.4,56.8,60.4,69.9,74.3,79.2,87.4,93.0,99.0,105.0,111.5,118.3]},
+160:{0:[31.7,33.5,35.4,43.1,45.7,48.5,56.0,59.5,63.3,69.9,74.5,79.4,84.7,90.3,96.3],
+     10:[32.7,34.6,36.6,44.6,47.3,50.2,57.9,61.5,65.5,72.3,77.0,82.1,87.5,93.2,99.4],
+     15:[33.2,35.1,37.2,45.3,48.0,51.0,58.8,62.5,66.5,73.5,78.2,83.4,88.8,94.6,100.8],
+     20:[33.7,35.6,37.7,46.0,48.8,51.8,59.7,63.5,67.6,74.6,79.4,84.7,90.2,96.0,102.3],
+     30:[34.7,36.7,38.8,47.4,50.2,53.3,61.5,65.4,69.6,76.9,81.8,87.1,92.8,98.8,105.1],
+     40:[35.0,37.0,39.2,48.0,51.0,54.2,62.6,66.6,70.9,78.3,83.4,88.8,94.6,100.5,106.9]},
+140:{0:[28.4,30.0,31.7,38.3,40.6,43.0,49.5,52.5,55.8,61.7,65.6,69.9,74.6,79.5,84.8],
+     10:[29.3,31.0,32.7,39.6,41.9,44.5,51.1,54.3,57.7,63.7,67.8,72.2,77.1,82.1,87.6],
+     15:[29.8,31.5,33.3,40.2,42.6,45.2,52.0,55.2,58.7,64.8,68.9,73.4,78.4,83.5,89.0],
+     20:[30.3,31.9,33.8,40.9,43.3,45.9,52.8,56.0,59.6,65.8,70.0,74.6,79.6,84.7,90.3],
+     30:[31.1,32.8,34.7,42.1,44.5,47.2,54.4,57.7,61.4,67.8,72.1,76.8,82.0,87.2,92.9],
+     40:[31.3,33.1,35.0,42.6,45.1,47.9,55.2,58.7,62.5,69.0,73.5,78.3,83.6,88.9,94.7]},
+120:{0:[25.2,26.5,28.0,33.6,35.5,37.6,42.9,45.5,48.3,53.1,56.5,60.1,64.1,68.3,72.7],
+     10:[26.0,27.4,28.9,34.7,36.7,38.8,44.3,47.0,49.9,54.9,58.4,62.1,66.3,70.6,75.2],
+     15:[26.4,27.8,29.4,35.2,37.2,39.4,45.1,47.8,50.7,55.8,59.3,63.1,67.4,71.7,76.4],
+     20:[26.8,28.2,29.8,35.8,37.8,40.1,45.8,48.5,51.5,56.7,60.3,64.1,68.5,72.8,77.6],
+     30:[27.5,29.0,30.6,36.8,38.9,41.2,47.1,50.0,53.1,58.4,62.1,66.1,70.5,75.0,79.9],
+     40:[27.7,29.2,30.9,37.1,39.3,41.7,47.8,50.7,53.9,59.4,63.2,67.3,71.8,76.5,81.5]}
+};
+
+const QRH8_T2_ENERGY = [10,20,30,40,50,60,70,80,90,100,110,120];
+const QRH8_T2A_NOREV = {
+  RTO_MAX_MAN: [10,20,30,40,50,60,70,80,90,100,110,120],
+  MAX_MAN:     [7.9,16.1,24.5,33.1,42.0,51.1,60.5,70.1,80.0,90.1,100.4,111.0],
+  MAX_AUTO:    [7.1,14.6,22.4,30.4,38.8,47.5,56.5,65.8,75.4,85.4,95.6,106.1],
+  AUTOBRAKE_4: [6.7,13.7,21.0,28.5,36.4,44.6,53.0,61.8,70.9,80.2,89.9,99.8],
+  AUTOBRAKE_3: [6.4,13.0,19.9,27.0,34.5,42.2,50.1,58.4,66.8,75.6,84.6,93.9],
+  AUTOBRAKE_2: [6.1,12.4,18.9,25.6,32.6,39.8,47.3,54.9,62.8,71.0,79.3,87.9],
+  AUTOBRAKE_1: [5.6,11.4,17.4,23.6,30.0,36.6,43.4,50.4,57.6,65.0,72.5,80.3],
+};
+const QRH8_T2B_2ENGREV = {
+  RTO_MAX_MAN: [10,20,30,40,50,60,70,80,90,100,110,120],
+  MAX_MAN:     [7.4,14.9,22.7,30.5,38.6,46.8,55.1,63.7,72.4,81.2,90.2,99.4],
+  MAX_AUTO:    [5.1,10.6,16.5,22.9,29.6,36.7,44.2,52.2,60.5,69.2,78.4,87.9],
+  AUTOBRAKE_4: [3.6,7.6,12.0,16.8,22.1,27.8,33.9,40.4,47.4,54.7,62.5,70.7],
+  AUTOBRAKE_3: [2.3,5.0,8.2,11.8,15.9,20.4,25.3,30.7,36.5,42.7,49.4,56.6],
+  AUTOBRAKE_2: [1.7,3.7,6.0,8.6,11.6,14.8,18.4,22.3,26.6,31.1,36.0,41.2],
+  AUTOBRAKE_1: [1.3,2.7,4.4,6.4,8.5,10.9,13.4,16.3,19.3,22.5,26.0,29.7],
+};
+
+// Table 3 (787-8): brackets <=16, 17,18,22,26,30,34,35, 36-50 (CAUTION), >=51 (FUSE PLUG MELT ZONE)
+const QRH8_T3_BRACKETS = [16,17,18,22,26,30,34,35];
+const QRH8_T3_INFLIGHT = [null,1.3,2.0,3.4,4.9,6.2,7.1,7.3];
+const QRH8_T3_GROUND =   [null,13,20,34,49,62,71,73];
+const QRH8_T3_BRAKETEMP = [2.4,2.4,2.6,3.1,3.7,4.3,4.8,4.9];
+const QRH8_T3_CAUTION_MAX = 50; // "36 TO 50" upper bound before FUSE PLUG MELT ZONE ("51 & ABOVE")
+
+
 // ================= QRH BRAKE COOLING SCHEDULE — interpolation engine =================
 // 787-9 (Category C Brakes) only — that's Air Europa's fleet. -D and -J engine variants share
 // identical tables (verified page by page), so no separate data set is needed per engine.
@@ -4159,8 +4259,8 @@ function qrhElementwiseInterp(rowA, rowB, t){
   return out;
 }
 
-function qrhInterpolatedRow(table, weight, oat){
-  const weightsAsc = QRH_WEIGHTS.slice().sort((a,b)=>a-b);
+function qrhInterpolatedRow(table, weight, oat, weights){
+  const weightsAsc = weights.slice().sort((a,b)=>a-b);
   let wLow=weightsAsc[0], wHigh=weightsAsc[weightsAsc.length-1];
   for(let i=0;i<weightsAsc.length-1;i++){ if(weight>=weightsAsc[i] && weight<=weightsAsc[i+1]){ wLow=weightsAsc[i]; wHigh=weightsAsc[i+1]; break; } }
   const wt = wHigh>wLow ? (weight-wLow)/(wHigh-wLow) : 0;
@@ -4175,8 +4275,7 @@ function qrhInterpolatedRow(table, weight, oat){
   return qrhElementwiseInterp(rowAtWeight(wLow), rowAtWeight(wHigh), wt);
 }
 
-function qrhValueForSpeedPA(row, speed, paList, pa){
-  const speeds = QRH_SPEEDS;
+function qrhValueForSpeedPA(row, speed, paList, pa, speeds){
   let sIdxLow=0, sIdxHigh=speeds.length-1, sLow=speeds[0], sHigh=speeds[speeds.length-1];
   for(let i=0;i<speeds.length-1;i++){ if(speed>=speeds[i] && speed<=speeds[i+1]){ sLow=speeds[i]; sHigh=speeds[i+1]; sIdxLow=i; sIdxHigh=i+1; break; } }
   const st = sHigh>sLow ? (speed-sLow)/(sHigh-sLow) : 0;
@@ -4206,18 +4305,18 @@ function qrhInterp1D(x, xs, ys){
   return {v:null, clamped:false};
 }
 
-function qrhTable3Lookup(adjEnergy){
+function qrhTable3Lookup(adjEnergy, ds){
   if(adjEnergy==null) return null;
-  const b = QRH_T3_BRACKETS; // [19,20,21,26,30,35,39,40]
-  if(adjEnergy <= b[0]) return { status:'none', inflightMin:null, groundMin:null, brakeTemp:'UP TO '+QRH_T3_BRAKETEMP[0] };
-  if(adjEnergy > 56) return { status:'fuseplug', inflightMin:null, groundMin:null, brakeTemp:'7.1 & ABOVE' };
-  if(adjEnergy > 40) return { status:'caution', inflightMin:null, groundMin:null, brakeTemp:'5.0 TO 7.0' };
+  const b = ds.brackets;
+  if(adjEnergy <= b[0]) return { status:'none', inflightMin:null, groundMin:null, brakeTemp:'UP TO '+ds.brakeTemp[0] };
+  if(adjEnergy > ds.cautionMax) return { status:'fuseplug', inflightMin:null, groundMin:null, brakeTemp:'7.1 & ABOVE' };
+  if(adjEnergy > b[b.length-1]) return { status:'caution', inflightMin:null, groundMin:null, brakeTemp:'5.0 TO 7.0' };
   for(let i=0;i<b.length-1;i++){
     if(adjEnergy>=b[i] && adjEnergy<=b[i+1]){
       const t = (adjEnergy-b[i])/(b[i+1]-b[i]);
-      const inflight = QRH_T3_INFLIGHT[i]==null ? QRH_T3_INFLIGHT[i+1] : QRH_T3_INFLIGHT[i]+(QRH_T3_INFLIGHT[i+1]-QRH_T3_INFLIGHT[i])*t;
-      const ground = QRH_T3_GROUND[i]==null ? QRH_T3_GROUND[i+1] : QRH_T3_GROUND[i]+(QRH_T3_GROUND[i+1]-QRH_T3_GROUND[i])*t;
-      const brakeTemp = QRH_T3_BRAKETEMP[i]+(QRH_T3_BRAKETEMP[i+1]-QRH_T3_BRAKETEMP[i])*t;
+      const inflight = ds.inflight[i]==null ? ds.inflight[i+1] : ds.inflight[i]+(ds.inflight[i+1]-ds.inflight[i])*t;
+      const ground = ds.ground[i]==null ? ds.ground[i+1] : ds.ground[i]+(ds.ground[i+1]-ds.ground[i])*t;
+      const brakeTemp = ds.brakeTemp[i]+(ds.brakeTemp[i+1]-ds.brakeTemp[i])*t;
       return { status:'normal', inflightMin: inflight, groundMin: ground, brakeTemp: brakeTemp.toFixed(1) };
     }
   }
@@ -4235,12 +4334,17 @@ function calcBrakeCooling(){
     resEl.innerHTML = '';
     return;
   }
-  if(variant==='787-8-D' || variant==='787-8-G'){
-    statusEl.textContent = `No tengo transcritas las tablas del ${variant.replace('-',' ').replace('D','TRENT1000-D').replace('G','TRENT1000-G')} — solo 787-9 (Cat. C Brakes, -D y -J, tablas idénticas entre sí). No calculo con datos que no he verificado.`;
-    statusEl.style.color = 'var(--danger)';
-    resEl.innerHTML = '';
-    return;
-  }
+
+  const is787_8 = variant==='787-8-D' || variant==='787-8-G';
+  const ds = is787_8
+    ? { weights:QRH8_WEIGHTS, speeds:QRH8_SPEEDS, paA:QRH8_PA_A, paB:QRH8_PA_B, table1a:QRH8_TABLE1A, table1b:QRH8_TABLE1B,
+        t2energy:QRH8_T2_ENERGY, t2aNorev:QRH8_T2A_NOREV, t2b2engrev:QRH8_T2B_2ENGREV,
+        brackets:QRH8_T3_BRACKETS, inflight:QRH8_T3_INFLIGHT, ground:QRH8_T3_GROUND, brakeTemp:QRH8_T3_BRAKETEMP, cautionMax:QRH8_T3_CAUTION_MAX }
+    : { weights:QRH_WEIGHTS, speeds:QRH_SPEEDS, paA:QRH_PA_A, paB:QRH_PA_B, table1a:QRH_TABLE1A, table1b:QRH_TABLE1B,
+        t2energy:QRH_T2_ENERGY, t2aNorev:QRH_T2A_NOREV, t2b2engrev:QRH_T2B_2ENGREV,
+        brackets:QRH_T3_BRACKETS, inflight:QRH_T3_INFLIGHT, ground:QRH_T3_GROUND, brakeTemp:QRH_T3_BRAKETEMP, cautionMax:56 };
+  const wMin = Math.min(...ds.weights), wMax = Math.max(...ds.weights);
+  const sMin = Math.min(...ds.speeds), sMax = Math.max(...ds.speeds);
 
   const weight = parseFloat(document.getElementById('qrhWeight').value);
   const oat = parseFloat(document.getElementById('qrhOat').value);
@@ -4257,8 +4361,8 @@ function calcBrakeCooling(){
     resEl.innerHTML = '';
     return;
   }
-  if(weight<110 || weight>270){
-    statusEl.textContent = `Peso fuera de rango de la tabla (110-270, 1000 KG) — se usará el límite más cercano.`;
+  if(weight<wMin || weight>wMax){
+    statusEl.textContent = `Peso fuera de rango de la tabla (${wMin}-${wMax}, 1000 KG) — se usará el límite más cercano.`;
     statusEl.style.color = 'var(--amber)';
   } else { statusEl.textContent=''; }
 
@@ -4269,26 +4373,26 @@ function calcBrakeCooling(){
 
   const paKft = paFt/1000;
   const useTable1b = paKft>10;
-  const table = useTable1b ? QRH_TABLE1B : QRH_TABLE1A;
-  const paList = useTable1b ? QRH_PA_B : QRH_PA_A;
+  const table = useTable1b ? ds.table1b : ds.table1a;
+  const paList = useTable1b ? ds.paB : ds.paA;
   const paKftClamped = Math.max(paList[0], Math.min(paList[paList.length-1], paKft));
 
-  const wClamped = Math.max(110, Math.min(270, weight));
+  const wClamped = Math.max(wMin, Math.min(wMax, weight));
   const oClamped = Math.max(0, Math.min(40, oat));
-  const sClamped = Math.max(100, Math.min(200, effSpeed));
+  const sClamped = Math.max(sMin, Math.min(sMax, effSpeed));
 
-  const row = qrhInterpolatedRow(table, wClamped, oClamped);
-  const refEnergy = qrhValueForSpeedPA(row, sClamped, paList, paKftClamped);
+  const row = qrhInterpolatedRow(table, wClamped, oClamped, ds.weights);
+  const refEnergy = qrhValueForSpeedPA(row, sClamped, paList, paKftClamped, ds.speeds);
 
   if(refEnergy==null){
     resEl.innerHTML = '<p class="wx-empty">Esta combinación de peso/velocidad/altitud está fuera de la tabla (el avión no puede alcanzar esa combinación) — no hay dato de energía de referencia.</p>';
     return;
   }
 
-  const eventTable = reverse==='norev' ? QRH_T2A_NOREV : QRH_T2B_2ENGREV;
+  const eventTable = reverse==='norev' ? ds.t2aNorev : ds.t2b2engrev;
   const eventRow = eventTable[event];
-  const adj = qrhInterp1D(refEnergy, QRH_T2_ENERGY, eventRow);
-  const result = qrhTable3Lookup(adj.v);
+  const adj = qrhInterp1D(refEnergy, ds.t2energy, eventRow);
+  const result = qrhTable3Lookup(adj.v, ds);
 
   const statusLabel = {
     none: {cls:'ok'},
@@ -4413,6 +4517,8 @@ function etopsDocTableHtml(rows){
 
 function renderEtopsDocView(){
   renderEtopsDocDepArr();
+  renderEtopsDocAltDetail();
+  renderEtopsDocEtopsDetail();
 }
 
 function renderEtopsDocDepArr(){
@@ -4425,6 +4531,22 @@ function renderEtopsDocDepArr(){
     return;
   }
   el.innerHTML = etopsDocTableHtml(rows);
+}
+
+function renderEtopsDocAltDetail(){
+  const el = document.getElementById('etopsDocAltDetail');
+  if(!el) return;
+  const doc = lastEtopsDoc;
+  const rows = doc ? doc.originDestRows.filter(r=>r.role==='DEST ALTN') : [];
+  el.innerHTML = rows.length ? etopsDocTableHtml(rows) : '<p class="wx-empty">No se ha encontrado esta información en Documentación ETOPS.</p>';
+}
+
+function renderEtopsDocEtopsDetail(){
+  const el = document.getElementById('etopsDocEtopsDetail');
+  if(!el) return;
+  const doc = lastEtopsDoc;
+  const rows = doc ? doc.etopsAltRows : [];
+  el.innerHTML = rows.length ? etopsDocTableHtml(rows) : '<p class="wx-empty">No se ha encontrado esta información en Documentación ETOPS.</p>';
 }
 
 function renderAircraftStatus(){
