@@ -394,6 +394,19 @@ body{
 .mel-annex-table tr:last-child td{border-bottom:none;}
 .mel-annex-table td:not(:first-child):not(:nth-child(2)){text-align:center;font-family:'JetBrains Mono',monospace;}
 
+.etopsdoc-table-wrap{overflow-x:auto;border-radius:9px;border:1px solid var(--line);}
+.etopsdoc-table{border-collapse:collapse;width:100%;font-size:11px;font-family:'JetBrains Mono',monospace;}
+.etopsdoc-table th{background:var(--surface-2);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:6px 8px;white-space:nowrap;border-bottom:1px solid var(--line);font-family:'Inter',sans-serif;}
+.etopsdoc-table td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--text);white-space:nowrap;}
+.etopsdoc-table td:first-child{color:var(--amber);font-weight:600;}
+.etopsdoc-table tr:last-child td{border-bottom:none;}
+
+.ac-defect-card{border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px;background:var(--surface-2);}
+.ac-defect-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.ac-defect-num{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+.ac-defect-mel{font-size:10.5px;font-weight:700;color:var(--amber);background:rgba(242,169,0,.12);padding:3px 8px;border-radius:6px;font-family:'JetBrains Mono',monospace;}
+.ac-defect-text{font-size:13px;color:var(--text);line-height:1.5;margin:0;}
+
 .fuel-cols{display:flex;gap:20px;flex-wrap:wrap;margin-top:6px;}
 .fuel-col{flex:1;min-width:220px;}
 .fuel-col-title{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600;}
@@ -970,9 +983,20 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
   <section class="panel" id="panel-qrh">
     <div class="card">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9s.5-2 3-2 3 1.5 2 3-3 2-3 4M12 17h.01"/></svg>Recommended Brake Cooling Schedule</h3>
-      <p class="sub">787-9 (Category C Brakes) — vale para -TRENT1000-D y -J, sus tablas son idénticas. Interpola automáticamente entre peso, OAT, altitud de presión y velocidad de frenada. Datos del QRH que subiste — revisa un par de casos contra el papel antes de usarla operativamente.</p>
+      <p class="sub">Interpola automáticamente entre peso, OAT, altitud de presión y velocidad de frenada. Datos del QRH que subiste — revisa un par de casos contra el papel antes de usarla operativamente.</p>
 
-      <div class="grid" style="grid-template-columns:1fr 1fr;">
+      <div class="field" style="margin-top:6px">
+        <label>Versión del avión (obligatorio)</label>
+        <select id="qrhVariant" onchange="calcBrakeCooling()">
+          <option value="">-- Selecciona --</option>
+          <option value="787-9-D">787-9 / TRENT1000-D (Cat. C Brakes)</option>
+          <option value="787-9-J">787-9 / TRENT1000-J (Cat. C Brakes)</option>
+          <option value="787-8-D">787-8 / TRENT1000-D (Cat. A Brakes)</option>
+          <option value="787-8-G">787-8 / TRENT1000-G (Cat. A Brakes)</option>
+        </select>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px">
         <div class="field"><label>Peso (1000 KG)</label><input id="qrhWeight" type="number" placeholder="190" oninput="calcBrakeCooling()"></div>
         <div class="field"><label>OAT (°C)</label><input id="qrhOat" type="number" placeholder="20" oninput="calcBrakeCooling()"></div>
         <div class="field"><label>Brakes on speed (KIAS)</label><input id="qrhSpeed" type="number" placeholder="140" oninput="calcBrakeCooling()"></div>
@@ -1081,17 +1105,7 @@ function addEtops(apt, start, end, detail){
 // Inline read-only detail shown right inside an Alternativos/ETOPS row, when that airport came from
 // Documentación ETOPS — same AIRPORT/RWY/FROM/TO/APPROACH/WX MIN/FCST format as the Departure/Arrival card.
 function etopsDocInlineDetail(r, spanFull){
-  const parts = r.airportRwy.split('/');
-  const airport = parts[0], rwy = parts.slice(1).join('/') || '—';
-  return `<div class="etopsdoc-row-grid" style="${spanFull?'grid-column:1/-1;':''}padding-top:7px;margin-top:2px;border-top:1px solid var(--line);">
-    <div><span class="k">AIRPORT</span>${airport}</div>
-    <div><span class="k">RWY</span>${rwy}</div>
-    <div><span class="k">FROM</span>${r.from}</div>
-    <div><span class="k">TO</span>${r.to}</div>
-    <div><span class="k">APPROACH</span>${r.approach}</div>
-    <div><span class="k">WX MIN</span>${r.wxMin}</div>
-    <div><span class="k">FCST</span>${r.fcst}</div>
-  </div>`;
+  return `<div style="${spanFull?'grid-column:1/-1;':''}padding-top:7px;margin-top:2px;border-top:1px solid var(--line);">${etopsDocTableHtml([r])}</div>`;
 }
 
 function removeRow(id, containerId){
@@ -2224,9 +2238,8 @@ async function extractChartNamesFromPdf(pdf){
 function prettyChartName(name){
   if(!name) return null;
   if(/^SIGWXRoute_MED/i.test(name)) return {title:'SIGWX ruta — nivel medio', tag:'SIGWX'};
-  if(/^SIGWXRoute_HIG.*2000/i.test(name)) return {title:'SIGWX ruta — nivel alto (00Z)', tag:'SIGWX'};
-  if(/^SIGWXRoute_HIG.*2006/i.test(name)) return {title:'SIGWX ruta — nivel alto (06Z)', tag:'SIGWX'};
-  if(/^SIGWXRoute_HIG.*2012/i.test(name)) return {title:'SIGWX ruta — nivel alto (12Z)', tag:'SIGWX'};
+  const higM = name.match(/^SIGWXRoute_HIG.*?(\d{4})\s*$/i);
+  if(higM) return {title:`SIGWX ruta — nivel alto (${higM[1]}Z)`, tag:'SIGWX'};
   const m = name.match(/^UAD_FL(\d+)_WND_TMP(_EDTO)?/i);
   if(m) return {title:`Viento / temperatura FL${m[1]}${m[2]?' (EDTO)':''}`, tag:'WND/TMP'};
   if(/^VertProf/i.test(name)) return {title:'Perfil vertical de la ruta', tag:'PERFIL'};
@@ -2237,6 +2250,17 @@ function prettyChartName(name){
 // Chart/annex pages (SIGWX, wind/temp, vertical profile, ETOPS plotting chart) are almost pure image with
 // very little extractable text, unlike the data pages around them. We use that as the detection signal,
 // then render just those pages to images instead of trying to redraw the data ourselves.
+// A low-text page could be a real chart (satellite/weather image) or just a blank filler page inside
+// some other attached document — both have ~0 extractable text. Checking for an actual painted image
+// operation tells them apart; a genuinely blank page has no image content at all.
+async function pageHasImage(page){
+  try{
+    const opList = await page.getOperatorList();
+    const imageOps = new Set([pdfjsLib.OPS.paintImageXObject, pdfjsLib.OPS.paintImageXObjectRepeat, pdfjsLib.OPS.paintJpegXObject, pdfjsLib.OPS.paintInlineImageXObject]);
+    return opList.fnArray.some(fn=>imageOps.has(fn));
+  }catch(e){ return true; } // if we can't tell, keep it — safer than wrongly dropping a real chart
+}
+
 async function extractChartPagesFromPdf(pdf, maxCount){
   const charts = [];
   for(let p=2; p<=pdf.numPages && charts.length<maxCount; p++){
@@ -2248,7 +2272,12 @@ async function extractChartPagesFromPdf(pdf, maxCount){
       .replace(/File:\s*\S+.*?Page:\s*\d+/gi,'')
       .replace(/AEA-MOP3\S*/gi,'')
       .replace(/\s+/g,' ').trim();
-    if(cleaned.length < 60 || /plotting chart/i.test(t)){
+    // section-divider pages ("OFP ref 14/0/1. UX055. ... Page 3") are also short but aren't charts —
+    // one of these slipping in shifts every chart name after it by one position
+    const looksLikeDivider = /\bPage\s+\d+\s*$/i.test(cleaned) || /\bref\s+\d/i.test(cleaned);
+    const isPlotting = /plotting chart/i.test(t);
+    if((cleaned.length < 60 && !looksLikeDivider) || isPlotting){
+      if(!isPlotting && !(await pageHasImage(page))) continue; // blank filler page, not a real chart
       const dataUrl = await renderPageToDataUrl(page, 1.5);
       charts.push({page:p, dataUrl, name:null});
     }
@@ -2560,10 +2589,11 @@ async function handleOfpUpload(file){
       lastAircraftStatus = {
         raw: etopsDoc.defects.map(d=>d.text).join('; '),
         melRef: etopsDoc.defects.find(d=>d.melRef) ? etopsDoc.defects.find(d=>d.melRef).melRef : null,
+        defects: etopsDoc.defects,
       };
     }
     if(!lastAircraftStatus && !etopsDoc.defects.length && newFormat){
-      lastAircraftStatus = { raw: 'NIL (sin defectos en Documentación ETOPS)', melRef: null };
+      lastAircraftStatus = { raw: 'NIL (sin defectos en Documentación ETOPS)', melRef: null, defects: [] };
     }
 
     // prefer the ETOPS doc's own detailed tables for the alternates/ETOPS airport list when present —
@@ -4197,6 +4227,21 @@ function qrhTable3Lookup(adjEnergy){
 function calcBrakeCooling(){
   const resEl = document.getElementById('qrhResult');
   const statusEl = document.getElementById('qrhStatus');
+  const variant = document.getElementById('qrhVariant').value;
+
+  if(!variant){
+    statusEl.textContent = 'Selecciona la versión del avión antes de nada — es obligatorio, cada variante tiene sus propias tablas.';
+    statusEl.style.color = 'var(--danger)';
+    resEl.innerHTML = '';
+    return;
+  }
+  if(variant==='787-8-D' || variant==='787-8-G'){
+    statusEl.textContent = `No tengo transcritas las tablas del ${variant.replace('-',' ').replace('D','TRENT1000-D').replace('G','TRENT1000-G')} — solo 787-9 (Cat. C Brakes, -D y -J, tablas idénticas entre sí). No calculo con datos que no he verificado.`;
+    statusEl.style.color = 'var(--danger)';
+    resEl.innerHTML = '';
+    return;
+  }
+
   const weight = parseFloat(document.getElementById('qrhWeight').value);
   const oat = parseFloat(document.getElementById('qrhOat').value);
   const speedIn = parseFloat(document.getElementById('qrhSpeed').value);
@@ -4354,24 +4399,16 @@ function extractAircraftStatus(planText){
   if(!m) return null;
   const raw = m[1].replace(/\s+/g,' ').trim();
   const refM = raw.match(/\b(\d{2}-\d{2}-\d{2})\b/);
-  return { raw, melRef: refM ? refM[1] : null };
+  return { raw, melRef: refM ? refM[1] : null, defects: /nil/i.test(raw) ? [] : [{text:raw, melRef: refM?refM[1]:null}] };
 }
 
-function etopsDocRowHtml(label, r){
-  const parts = r.airportRwy.split('/');
-  const airport = parts[0], rwy = parts.slice(1).join('/') || '—';
-  return `<div class="etopsdoc-row">
-    <div class="etopsdoc-row-head"><span class="etopsdoc-role">${label}</span></div>
-    <div class="etopsdoc-row-grid">
-      <div><span class="k">AIRPORT</span>${airport}</div>
-      <div><span class="k">RWY</span>${rwy}</div>
-      <div><span class="k">FROM</span>${r.from}</div>
-      <div><span class="k">TO</span>${r.to}</div>
-      <div><span class="k">APPROACH</span>${r.approach}</div>
-      <div><span class="k">WX MIN</span>${r.wxMin}</div>
-      <div><span class="k">FCST</span>${r.fcst}</div>
-    </div>
-  </div>`;
+function etopsDocTableHtml(rows){
+  let html = '<div class="etopsdoc-table-wrap"><table class="etopsdoc-table"><thead><tr><th>AIRPORT/RWY</th><th>FROM</th><th>TO</th><th>APPROACH</th><th>WX MIN</th><th>FCST</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    html += `<tr><td>${r.airportRwy}</td><td>${r.from}</td><td>${r.to}</td><td>${r.approach}</td><td>${r.wxMin}</td><td>${r.fcst}</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  return html;
 }
 
 function renderEtopsDocView(){
@@ -4387,7 +4424,7 @@ function renderEtopsDocDepArr(){
     el.innerHTML = '<p class="wx-empty">No se ha encontrado esta información en Documentación ETOPS.</p>';
     return;
   }
-  el.innerHTML = rows.map(r=>etopsDocRowHtml(r.role, r)).join('');
+  el.innerHTML = etopsDocTableHtml(rows);
 }
 
 function renderAircraftStatus(){
@@ -4397,21 +4434,30 @@ function renderAircraftStatus(){
     el.innerHTML = '<p class="wx-empty">Sube el OFP en Setup para ver aquí el estado.</p>';
     return;
   }
-  let html = `<div class="raw-box">${lastAircraftStatus.raw}</div>`;
-  if(lastAircraftStatus.melRef){
-    const ref = lastAircraftStatus.melRef;
-    html += `<div class="window-badge" style="margin-top:10px">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <div><div class="window-badge-label">Referencia MEL detectada</div><div class="window-badge-time" style="font-size:14px">${ref}</div></div>
+  const defects = lastAircraftStatus.defects || [];
+  if(!defects.length){
+    el.innerHTML = `<div class="window-badge" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.3)">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      <div><div class="window-badge-label">Sin defectos</div><div class="window-badge-time" style="font-size:13px">${lastAircraftStatus.raw}</div></div>
     </div>`;
-    if(!melLoaded){
-      html += `<p class="wx-empty" style="margin-top:8px">Sube la MEL arriba para ver el texto completo de este ítem.</p>`;
-    } else if(melItems[ref]){
-      html += renderMelItemHtml(ref, melItems[ref]);
-    } else {
-      html += `<p class="wx-empty" style="margin-top:8px">No se ha encontrado el ítem ${ref} en la MEL cargada.</p>`;
-    }
+    return;
   }
+  let html = '';
+  defects.forEach((d,i)=>{
+    html += `<div class="ac-defect-card">
+      <div class="ac-defect-head"><span class="ac-defect-num">Defecto ${i+1}/${defects.length}</span>${d.melRef?`<span class="ac-defect-mel">MEL ${d.melRef}</span>`:''}</div>
+      <p class="ac-defect-text">${d.text}</p>`;
+    if(d.melRef){
+      if(!melLoaded){
+        html += `<p class="wx-empty" style="margin-top:6px">Sube la MEL arriba para ver el texto completo de este ítem.</p>`;
+      } else if(melItems[d.melRef]){
+        html += `<div style="margin-top:8px">${renderMelItemHtml(d.melRef, melItems[d.melRef])}</div>`;
+      } else {
+        html += `<p class="wx-empty" style="margin-top:6px">No se ha encontrado el ítem ${d.melRef} en la MEL cargada.</p>`;
+      }
+    }
+    html += `</div>`;
+  });
   el.innerHTML = html;
 }
 
