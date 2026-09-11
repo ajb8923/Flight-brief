@@ -557,7 +557,6 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
         Añadir alternativo
       </button>
-      <div id="etopsDocAltDetail" style="margin-top:12px"></div>
     </div>
 
     <div class="card">
@@ -574,14 +573,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Añadir punto ETOPS
         </button>
-        <div id="etopsDocEtopsDetail" style="margin-top:12px"></div>
       </div>
-    </div>
-
-    <div class="card">
-      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M8 17V9m4 8V5m4 12v-6"/></svg>Documentación ETOPS — Resumen</h3>
-      <p class="sub">Se rellena sola al subir el OFP.</p>
-      <div id="etopsDocView"><p class="wx-empty">Sube el OFP en Setup para ver esta información.</p></div>
     </div>
 
     <div class="card">
@@ -1051,36 +1043,55 @@ function trashIcon(){
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>';
 }
 
-function addAlt(){
+function addAlt(icao, detail){
   altSeq++;
   const id = 'alt'+altSeq;
   const div = document.createElement('div');
   div.className = 'row';
   div.id = id;
+  const detailHtml = detail ? etopsDocInlineDetail(detail) : '';
   div.innerHTML = `
     <div class="row-index">${document.querySelectorAll('#altRows .row').length+1}</div>
-    <div class="row-fields"><input placeholder="ICAO / IATA" oninput="onSetupChange()"></div>
+    <div class="row-fields"><input placeholder="ICAO / IATA" value="${icao||''}" oninput="onSetupChange()">${detailHtml}</div>
     <button class="icon-btn" onclick="removeRow('${id}','altRows')">${trashIcon()}</button>`;
   document.getElementById('altRows').appendChild(div);
   onSetupChange();
 }
 
-function addEtops(){
+function addEtops(apt, start, end, detail){
   etopsSeq++;
   const id = 'etops'+etopsSeq;
   const div = document.createElement('div');
   div.className = 'row etops';
   div.id = id;
+  const detailHtml = detail ? etopsDocInlineDetail(detail, true) : '';
   div.innerHTML = `
     <div class="row-index">${document.querySelectorAll('#etopsRows .row').length+1}</div>
     <div class="row-fields">
-      <input placeholder="Aeropuerto ETOPS" oninput="onSetupChange()">
-      <input type="time" placeholder="Inicio" oninput="onSetupChange()">
-      <input type="time" placeholder="Fin" oninput="onSetupChange()">
+      <input placeholder="Aeropuerto ETOPS" value="${apt||''}" oninput="onSetupChange()">
+      <input type="time" placeholder="Inicio" value="${start||''}" oninput="onSetupChange()">
+      <input type="time" placeholder="Fin" value="${end||''}" oninput="onSetupChange()">
+      ${detailHtml}
     </div>
     <button class="icon-btn" onclick="removeRow('${id}','etopsRows')">${trashIcon()}</button>`;
   document.getElementById('etopsRows').appendChild(div);
   onSetupChange();
+}
+
+// Inline read-only detail shown right inside an Alternativos/ETOPS row, when that airport came from
+// Documentación ETOPS — same AIRPORT/RWY/FROM/TO/APPROACH/WX MIN/FCST format as the Departure/Arrival card.
+function etopsDocInlineDetail(r, spanFull){
+  const parts = r.airportRwy.split('/');
+  const airport = parts[0], rwy = parts.slice(1).join('/') || '—';
+  return `<div class="etopsdoc-row-grid" style="${spanFull?'grid-column:1/-1;':''}padding-top:7px;margin-top:2px;border-top:1px solid var(--line);">
+    <div><span class="k">AIRPORT</span>${airport}</div>
+    <div><span class="k">RWY</span>${rwy}</div>
+    <div><span class="k">FROM</span>${r.from}</div>
+    <div><span class="k">TO</span>${r.to}</div>
+    <div><span class="k">APPROACH</span>${r.approach}</div>
+    <div><span class="k">WX MIN</span>${r.wxMin}</div>
+    <div><span class="k">FCST</span>${r.fcst}</div>
+  </div>`;
 }
 
 function removeRow(id, containerId){
@@ -2688,21 +2699,18 @@ function applyExtractedData(plan, timings){
 
   const alts = plan.airports.filter(a=>a.type==='ALT'||a.type==='ALTN');
   alts.forEach(a=>{
-    addAlt();
-    const rows = document.querySelectorAll('#altRows .row input');
-    rows[rows.length-1].value = a.icao;
+    const detail = lastEtopsDoc ? lastEtopsDoc.originDestRows.find(r=>r.role==='DEST ALTN' && r.airportRwy.split('/')[0]===a.icao) : null;
+    addAlt(a.icao, detail);
   });
   if(alts.length===0) addAlt();
 
-  const etopsRows = plan.airports.filter(a=>a.type==='ETOPS');
-  if(etopsRows.length){
+  const etopsAirports = plan.airports.filter(a=>a.type==='ETOPS');
+  if(etopsAirports.length){
     document.getElementById('etopsToggle').checked = true;
     document.getElementById('etopsBlock').style.display = 'block';
-    etopsRows.forEach(a=>{
-      addEtops();
-      const row = document.querySelectorAll('#etopsRows .row')[document.querySelectorAll('#etopsRows .row').length-1];
-      const ins = row.querySelectorAll('input');
-      ins[0].value = a.icao; ins[1].value = a.from; ins[2].value = a.to;
+    etopsAirports.forEach(a=>{
+      const detail = lastEtopsDoc ? lastEtopsDoc.etopsAltRows.find(r=>r.airportRwy.split('/')[0]===a.icao) : null;
+      addEtops(a.icao, a.from, a.to, detail);
     });
   }
 
@@ -4350,9 +4358,13 @@ function extractAircraftStatus(planText){
 }
 
 function etopsDocRowHtml(label, r){
+  const parts = r.airportRwy.split('/');
+  const airport = parts[0], rwy = parts.slice(1).join('/') || '—';
   return `<div class="etopsdoc-row">
-    <div class="etopsdoc-row-head"><span class="etopsdoc-role">${label}</span><span class="mono">${r.airportRwy}</span></div>
+    <div class="etopsdoc-row-head"><span class="etopsdoc-role">${label}</span></div>
     <div class="etopsdoc-row-grid">
+      <div><span class="k">AIRPORT</span>${airport}</div>
+      <div><span class="k">RWY</span>${rwy}</div>
       <div><span class="k">FROM</span>${r.from}</div>
       <div><span class="k">TO</span>${r.to}</div>
       <div><span class="k">APPROACH</span>${r.approach}</div>
@@ -4363,32 +4375,7 @@ function etopsDocRowHtml(label, r){
 }
 
 function renderEtopsDocView(){
-  renderEtopsDocHeader();
   renderEtopsDocDepArr();
-  renderEtopsDocAltDetail();
-  renderEtopsDocEtopsDetail();
-}
-
-function renderEtopsDocHeader(){
-  const el = document.getElementById('etopsDocView');
-  if(!el) return;
-  const doc = lastEtopsDoc;
-  const hasHeader = doc && (doc.picCrew || doc.costIndex || doc.dom);
-  if(!hasHeader){
-    el.innerHTML = '<p class="wx-empty">No se ha encontrado la cabecera de "Documentación ETOPS" en este PDF.</p>';
-    return;
-  }
-  let html = '<div class="etopsdoc-row-grid">';
-  if(doc.picCrew) html += `<div><span class="k">PIC-CREW</span>${doc.picCrew}</div>`;
-  if(doc.costIndex) html += `<div><span class="k">CI</span>${doc.costIndex}</div>`;
-  if(doc.prevPax) html += `<div><span class="k">PREVISIÓN PAX</span>${doc.prevPax}</div>`;
-  if(doc.flightKit) html += `<div><span class="k">FLIGHT KIT</span>${doc.flightKit}</div>`;
-  if(doc.carga) html += `<div><span class="k">CARGA</span>${doc.carga}</div>`;
-  if(doc.dom) html += `<div><span class="k">DOM</span>${doc.dom}</div>`;
-  if(doc.payload) html += `<div><span class="k">PAYLOAD</span>${doc.payload}</div>`;
-  if(doc.ezfm) html += `<div><span class="k">EZFM</span>${doc.ezfm}</div>`;
-  html += '</div>';
-  el.innerHTML = html;
 }
 
 function renderEtopsDocDepArr(){
@@ -4401,24 +4388,6 @@ function renderEtopsDocDepArr(){
     return;
   }
   el.innerHTML = rows.map(r=>etopsDocRowHtml(r.role, r)).join('');
-}
-
-function renderEtopsDocAltDetail(){
-  const el = document.getElementById('etopsDocAltDetail');
-  if(!el) return;
-  const doc = lastEtopsDoc;
-  const rows = doc ? doc.originDestRows.filter(r=>r.role==='DEST ALTN') : [];
-  if(!rows.length){ el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="etopsdoc-group-title">Detalle (Documentación ETOPS)</div>' + rows.map(r=>etopsDocRowHtml('DEST ALTN', r)).join('');
-}
-
-function renderEtopsDocEtopsDetail(){
-  const el = document.getElementById('etopsDocEtopsDetail');
-  if(!el) return;
-  const doc = lastEtopsDoc;
-  const rows = doc ? doc.etopsAltRows : [];
-  if(!rows.length){ el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="etopsdoc-group-title">Detalle (Documentación ETOPS)</div>' + rows.map(r=>etopsDocRowHtml('ETOPS ALTN', r)).join('');
 }
 
 function renderAircraftStatus(){
