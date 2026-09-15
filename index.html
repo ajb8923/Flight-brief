@@ -521,6 +521,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <summary class="link-btn" style="cursor:pointer">Ver texto leído de la página (debug)</summary>
         <textarea readonly id="ofpDebugText" style="min-height:140px;margin-top:8px;font-size:10.5px" placeholder="Aparecerá aquí después de subir un PDF."></textarea>
       </details>
+      <details style="margin-top:10px">
+        <summary class="link-btn" style="cursor:pointer">Ver texto leído de Documentación ETOPS (debug)</summary>
+        <textarea readonly id="etopsDocDebugText" style="min-height:140px;margin-top:8px;font-size:10.5px" placeholder="Aparecerá aquí después de subir un PDF."></textarea>
+      </details>
     </div>
 
     <div class="card">
@@ -1922,8 +1926,8 @@ function parsePlanPage(rawLayoutText){
   let m = text.match(/FLT\s+NUM:\s*(\S+)\s+REG:\s*(\S+)\s+DEP:\s*([A-Z]{4})\s+ARR:\s*([A-Z]{4})\s+OFP:\s*(\S+)/);
   if(m){ result.dep=m[3]; result.arr=m[4]; result.ofpRef=m[5]; }
 
-  m = text.match(/STD:\s*\d{2}\/\d{2}\/\d{2}\s+(\d{2}:\d{2})/);
-  if(m) result.std = m[1];
+  m = text.match(/STD:\s*\d{1,2}\/\d{1,2}\/\d{2}\s+(\d{1,2}):(\d{2})/);
+  if(m) result.std = m[1].padStart(2,'0')+':'+m[2];
 
   if(result.arr){
     const arrAnchored = text.match(new RegExp('ROUTE\\s+TEXT:\\s*([\\s\\S]*?'+result.arr+'\\/\\d+)', 'i'));
@@ -2371,8 +2375,8 @@ function parseEtopsDocSection(text){
   if(m){ out.carga = m[1]; out.dom = m[2]; }
   m = text.match(/Payload:\s*(\d+)\s+EZFM:\s*(\d+)/i);
   if(m){ out.payload = m[1]; out.ezfm = m[2]; }
-  m = text.match(/STD:\s*\d{2}\/\d{2}\/\d{4}\s+(\d{2}:\d{2}):\d{2}/i);
-  if(m) out.std = m[1];
+  m = text.match(/STD:\s*\d{1,2}\/\d{1,2}\/\d{4}\s+(\d{1,2}):(\d{2}):\d{2}/i);
+  if(m) out.std = m[1].padStart(2,'0')+':'+m[2];
 
   m = text.match(/DEP\s+RWY:\s*(\S+)/i);
   if(m) out.depRwy = m[1].toUpperCase();
@@ -2400,7 +2404,7 @@ function parseEtopsDocSection(text){
   // "ETOPS Alternate Weather y Notams": no role label, dash-separated WX MIN/FCST with literal labels
   const etopsBlockM = text.match(/ETOPS\s+Alternate\s+Weather\s+y\s+Notams:([\s\S]*?)(?=Origen\s+Destino\s+Alter|$)/i);
   if(etopsBlockM){
-    const rowRe = /^(\S+)\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(.+?)\s+WX MIN:\s*(\S+)\s+FCST WX:\s*(\S+)/gm;
+    const rowRe = /^(\S+)\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(.+?)\s+WX\s+MIN:\s*(\S+)\s+FCST\s+WX:\s*(\S+)/gm;
     let rm;
     while((rm = rowRe.exec(etopsBlockM[1]))){
       out.etopsAltRows.push({ airportRwy:rm[1], from:rm[2], to:rm[3], approach:rm[4].trim(), wxMin:rm[5], fcst:rm[6] });
@@ -2563,6 +2567,7 @@ async function handleOfpUpload(file){
     // present in both formats going forward, so this always runs — it just won't find anything on old PDFs
     setOfpStatus('Buscando Documentación ETOPS…');
     const etopsDocText = await extractEtopsDocFromPdf(pdf);
+    document.getElementById('etopsDocDebugText').value = etopsDocText || '(no se ha encontrado la sección "PLANIFICACION - DESPACHO DE VUELOS ETOPS" en ninguna página)';
     const etopsDoc = parseEtopsDocSection(etopsDocText);
     lastEtopsDoc = etopsDoc;
 
