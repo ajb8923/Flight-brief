@@ -25,12 +25,6 @@
   --radius:14px;
 }
 
-/* Iberia theme: same dark shell, red corporate accent instead of Air Europa's amber */
-body[data-airline="iberia"]{
-  --amber:#e4002b;
-  --cyan:#4fb8d1;
-}
-
 .airline-landing{
   position:fixed;inset:0;z-index:999;background:var(--bg);
   display:flex;align-items:center;justify-content:center;padding:24px;
@@ -49,17 +43,16 @@ body[data-airline="iberia"]{
 .airline-choice:hover{border-color:var(--amber);}
 .airline-choice-name{font-size:16px;font-weight:700;color:var(--text);}
 .airline-choice-sub{font-size:12px;color:var(--muted);}
-.airline-choice-aea:hover{border-color:#f2a900;}
-.airline-choice-iberia:hover{border-color:#e4002b;}
+
 
 .airline-switch-btn{
-  width:16px;height:16px;border-radius:50%;border:none;cursor:pointer;margin-left:2px;
-  background:var(--surface-2);position:relative;flex-shrink:0;
+  display:flex;align-items:center;gap:5px;margin-left:8px;flex-shrink:0;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:20px;
+  padding:5px 10px 5px 8px;cursor:pointer;color:var(--muted);font-family:'Inter',sans-serif;
+  font-size:11px;font-weight:600;
 }
-.airline-switch-btn::before{
-  content:"";position:absolute;inset:0;margin:auto;width:8px;height:8px;
-  border:1.5px solid var(--muted);border-top-color:transparent;border-radius:50%;
-}
+.airline-switch-btn svg{width:13px;height:13px;flex-shrink:0;}
+.airline-switch-btn:hover{border-color:var(--amber);color:var(--text);}
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
@@ -392,7 +385,8 @@ body{
 .chart-row-chevron{flex:none;color:var(--muted);transition:transform .15s;}
 .chart-row.active .chart-row-chevron{transform:rotate(90deg);color:var(--amber);}
 .chart-viewer{margin-top:14px;}
-.chart-img{width:100%;border-radius:11px;border:1px solid var(--line);background:#fff;}
+.chart-img{max-width:100%;max-height:100%;border-radius:11px;border:1px solid var(--line);background:#fff;transform-origin:center center;touch-action:none;user-select:none;-webkit-user-drag:none;}
+.chart-img-wrap{overflow:hidden;display:flex;align-items:center;justify-content:center;height:58vh;border-radius:11px;background:var(--surface-2);touch-action:none;}
 .phenomena-badge{
   display:flex;align-items:flex-start;gap:10px;background:rgba(242,169,0,.1);
   border:1px solid rgba(242,169,0,.4);border-radius:11px;padding:11px 13px;margin-bottom:10px;
@@ -508,7 +502,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <div class="pfd-brand">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
         <div class="name">Flight<b>Brief</b></div>
-        <button class="airline-switch-btn" id="airlineSwitchBtn" onclick="changeAirline()" title="Cambiar aerolínea"></button>
+        <button class="airline-switch-btn" id="airlineSwitchBtn" onclick="changeAirline()" title="Cambiar aerolínea">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span id="airlineSwitchLabel">Cambiar</span>
+        </button>
       </div>
       <div class="pfd-route" id="pfdRoute">
         <div class="pfd-city"><div class="code mono" id="pfdDep">----</div><div class="label">DEP</div></div>
@@ -538,7 +535,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
     </button>
     <button class="tab" data-tab="metar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9h-1.8A7 7 0 1 0 4 15.5"/></svg>
-      METAR/TAF <span class="dot off" id="dot-metar"></span>
+      <span id="metarTabLabel">METAR/TAF</span> <span class="dot off" id="dot-metar"></span>
     </button>
     <button class="tab" data-tab="notam">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
@@ -2314,7 +2311,7 @@ async function extractChartPagesFromPdf(pdf, maxCount){
     if((cleaned.length < 60 && !looksLikeDivider) || isPlotting){
       if(!isPlotting && !(await pageHasImage(page))) continue; // blank filler page, not a real chart
       const dataUrl = await renderPageToDataUrl(page, 1.5);
-      charts.push({page:p, dataUrl, name:null});
+      charts.push({page:p, dataUrl, name:null, rotation:0});
     }
   }
   return charts;
@@ -2323,6 +2320,99 @@ async function extractChartPagesFromPdf(pdf, maxCount){
 function selectChart(i){
   selectedChartIdx = (selectedChartIdx===i) ? null : i;
   renderMapsView();
+}
+
+function rotateChart(i){
+  const c = mapsChartList[i];
+  if(!c) return;
+  c.rotation = ((c.rotation||0) + 90) % 360;
+  renderMapsView();
+}
+
+// Zoom/pan state lives on the chart object itself (c.scale/c.panX/c.panY) so it survives a rotate
+// (which re-renders the viewer) and resets only when the viewer is told to.
+function getChartState(i){
+  const c = mapsChartList[i];
+  if(!c) return null;
+  if(c.scale==null) c.scale = 1;
+  if(c.panX==null) c.panX = 0;
+  if(c.panY==null) c.panY = 0;
+  return c;
+}
+
+function applyChartTransform(i){
+  const c = getChartState(i);
+  const img = document.getElementById('chartImgEl');
+  if(!c || !img) return;
+  img.style.transform = `translate(${c.panX}px, ${c.panY}px) scale(${c.scale}) rotate(${c.rotation||0}deg)`;
+}
+
+function zoomChart(i, factor){
+  const c = getChartState(i);
+  if(!c) return;
+  c.scale = Math.max(0.5, Math.min(6, c.scale * factor));
+  applyChartTransform(i);
+}
+
+function resetChartView(i){
+  const c = getChartState(i);
+  if(!c) return;
+  c.scale = 1; c.panX = 0; c.panY = 0;
+  applyChartTransform(i);
+}
+
+// Pinch-to-zoom (two pointers) and drag-to-pan (one pointer, double-tap to reset) on the chart image.
+// Re-attached every time the viewer re-renders, since its DOM is rebuilt from scratch each time.
+function attachChartGestures(i){
+  const wrap = document.getElementById('chartImgWrap');
+  if(!wrap) return;
+  applyChartTransform(i);
+  wrap.style.touchAction = 'none';
+
+  const pointers = new Map();
+  let startDist = 0, startScale = 1, dragStart = null, lastTap = 0;
+
+  function dist(p1,p2){ return Math.hypot(p1.x-p2.x, p1.y-p2.y); }
+
+  wrap.onpointerdown = (e)=>{
+    wrap.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const c = getChartState(i);
+    if(pointers.size===2){
+      const pts = Array.from(pointers.values());
+      startDist = dist(pts[0], pts[1]);
+      startScale = c.scale;
+      dragStart = null;
+    } else if(pointers.size===1){
+      dragStart = {x:e.clientX, y:e.clientY, panX:c.panX, panY:c.panY};
+      const now = Date.now();
+      if(now - lastTap < 300) resetChartView(i);
+      lastTap = now;
+    }
+  };
+  wrap.onpointermove = (e)=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const c = getChartState(i);
+    if(pointers.size===2){
+      const pts = Array.from(pointers.values());
+      const newDist = dist(pts[0], pts[1]);
+      if(startDist>0) c.scale = Math.max(0.5, Math.min(6, startScale * (newDist/startDist)));
+      applyChartTransform(i);
+    } else if(pointers.size===1 && dragStart){
+      c.panX = dragStart.panX + (e.clientX - dragStart.x);
+      c.panY = dragStart.panY + (e.clientY - dragStart.y);
+      applyChartTransform(i);
+    }
+  };
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if(pointers.size<2) startDist = 0;
+    if(pointers.size===0) dragStart = null;
+  }
+  wrap.onpointerup = endPointer;
+  wrap.onpointercancel = endPointer;
+  wrap.onpointerleave = endPointer;
 }
 
 function renderMapsView(){
@@ -2356,14 +2446,23 @@ function renderMapsView(){
           <span>Fenómeno esperado (despacho, sección 7): ${c.phenomena}</span>
         </div>`;
       }
-      row += `<img src="${c.dataUrl}" class="chart-img" alt="${pretty?pretty.title:'carta'}">
-        <p class="sub" style="text-align:center;margin-top:8px">Página ${c.page} del OFP</p>
+      row += `<div class="chart-img-wrap" id="chartImgWrap">
+          <img src="${c.dataUrl}" class="chart-img" id="chartImgEl" alt="${pretty?pretty.title:'carta'}">
+        </div>
+        <div style="display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="link-btn" onclick="event.stopPropagation();rotateChart(${i})">⟳ Girar 90°</button>
+          <button class="link-btn" onclick="event.stopPropagation();zoomChart(${i}, 1.5)">+ Zoom</button>
+          <button class="link-btn" onclick="event.stopPropagation();zoomChart(${i}, 1/1.5)">− Zoom</button>
+          <button class="link-btn" onclick="event.stopPropagation();resetChartView(${i})">Restablecer</button>
+        </div>
+        <p class="sub" style="text-align:center;margin-top:4px">Página ${c.page}${c.sourceLabel?' — '+c.sourceLabel:' del OFP'} · pellizca para zoom, arrastra para mover</p>
       </div>`;
     }
     return row;
   }).join('') + '</div>';
 
   container.innerHTML = html;
+  if(selectedChartIdx!=null) attachChartGestures(selectedChartIdx);
 }
 
 async function extractNotamBulletinFromPdf(pdf){
@@ -5170,8 +5269,9 @@ function applyAirline(airline){
   document.getElementById('ofpFile').multiple = multi;
   document.getElementById('ofpCardTitle').textContent = multi ? 'Subir documentación de despacho (6 PDF)' : 'Subir OFP (PDF)';
   document.getElementById('ofpCardSub').textContent = multi
-    ? 'Selecciona los 6 PDF del despacho de Iberia a la vez (mismo selector, elige varios archivos). Todo se procesa en el propio iPad, no se sube a ningún servidor.'
+    ? 'Selecciona los 6 PDF del despacho de Iberia a la vez (mismo selector, elige varios archivos) — se identifican y reparten solos por su nombre. Todo se procesa en el propio iPad, no se sube a ningún servidor.'
     : 'Sube el PDF completo del despacho (formato nuevo con Documentación ETOPS, o el antiguo con página de planificación) para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.';
+  document.getElementById('metarTabLabel').textContent = multi ? 'MET' : 'METAR/TAF';
 }
 
 function handleOfpFileInput(fileList){
@@ -5179,14 +5279,74 @@ function handleOfpFileInput(fileList){
   else if(fileList[0]) handleOfpUpload(fileList[0]);
 }
 
-// Placeholder — Iberia's 6-document parsers aren't built yet; this just confirms the files are
-// selected so the picker can be wired up before we know what to look for in each one.
-function handleIberiaOfpUpload(fileList){
+// Iberia's dispatch is 6 separate PDFs rather than one combined file. Each file's own name says what
+// it is — "SIG" (x2) for the two significant-weather charts, "GRAPH" for the wind chart, and OFP/
+// NOTAM/MET for the other three — so this identifies and files each one automatically, no manual
+// tagging. The 3 chart PDFs go straight into Mapas; OFP/NOTAM/MET data extraction isn't built yet.
+function guessIberiaRole(filename, takenRoles){
+  const n = filename.toUpperCase();
+  if(n.includes('GRAPH') && !takenRoles.has('wind')) return 'wind';
+  if(n.includes('SIG')){
+    if(!takenRoles.has('sigwx1')) return 'sigwx1';
+    if(!takenRoles.has('sigwx2')) return 'sigwx2';
+  }
+  if(n.includes('NOTAM') && !takenRoles.has('notam')) return 'notam';
+  if(n.includes('MET') && !takenRoles.has('metartaf')) return 'metartaf';
+  if(n.includes('OFP') && !takenRoles.has('ofp')) return 'ofp';
+  return null;
+}
+
+async function handleIberiaOfpUpload(fileList){
   const files = Array.from(fileList);
   if(!files.length) return;
-  const names = files.map(f=>f.name).join('\n');
-  setOfpStatus(`${files.length} archivo(s) seleccionado(s). Extracción de datos de Iberia aún no implementada.`);
-  document.getElementById('ofpDebugText').value = 'Archivos seleccionados:\n' + names;
+
+  const taken = new Set();
+  const iberiaFiles = files.map(file=>{
+    const role = guessIberiaRole(file.name, taken);
+    if(role) taken.add(role);
+    return {file, role};
+  });
+  const unrecognized = iberiaFiles.filter(e=>!e.role);
+
+  if(!window['pdfjsLib']){
+    setOfpStatus('No se pudo cargar el lector de PDF (sin conexión).', true);
+    return;
+  }
+  setOfpStatus('Identificando y procesando los documentos…');
+  await ensurePdfWorker();
+
+  mapsChartList = [];
+  const mapRoles = {sigwx1:'SIGWX 1', sigwx2:'SIGWX 2', wind:'Viento'};
+  for(const entry of iberiaFiles){
+    if(!mapRoles[entry.role]) continue;
+    try{
+      const buf = await entry.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf, verbosity: 0}).promise;
+      for(let p=1; p<=pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        const dataUrl = await renderPageToDataUrl(page, 1.5);
+        mapsChartList.push({page:p, dataUrl, name:`${mapRoles[entry.role]} — ${entry.file.name}`, sourceLabel:mapRoles[entry.role], rotation:0});
+      }
+    }catch(e){
+      console.error(e);
+      setOfpStatus(`Error leyendo ${entry.file.name}: ${e.message}`, true);
+    }
+  }
+  selectedChartIdx = null;
+  renderMapsView();
+
+  const ofpEntry = iberiaFiles.find(e=>e.role==='ofp');
+  const notamEntry = iberiaFiles.find(e=>e.role==='notam');
+  const wxEntry = iberiaFiles.find(e=>e.role==='metartaf');
+  document.getElementById('ofpDebugText').value = [
+    ofpEntry ? 'OFP: '+ofpEntry.file.name : 'OFP: no identificado',
+    notamEntry ? 'NOTAM: '+notamEntry.file.name : 'NOTAM: no identificado',
+    wxEntry ? 'MET: '+wxEntry.file.name : 'MET: no identificado',
+    unrecognized.length ? 'Sin identificar: '+unrecognized.map(e=>e.file.name).join(', ') : '',
+  ].filter(Boolean).join('\n');
+
+  const identifiedCount = iberiaFiles.length - unrecognized.length;
+  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP/NOTAM/MET: todavía sin extracción de datos.`);
 }
 
 function selectAirline(airline){
@@ -5198,7 +5358,6 @@ function selectAirline(airline){
 }
 
 function changeAirline(){
-  if(!confirm('¿Cambiar de aerolínea? Tendrás que volver a elegir Air Europa o Iberia la próxima vez.')) return;
   localStorage.removeItem(AIRLINE_KEY);
   document.getElementById('app').style.display = 'none';
   document.getElementById('airlineLanding').style.display = 'flex';
