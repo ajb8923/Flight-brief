@@ -1210,16 +1210,35 @@ function onSetupChange(){
   state.alternates = readAlternates();
   state.etopsOn = document.getElementById('etopsToggle').checked;
   state.etopsPoints = state.etopsOn ? readEtopsPoints() : [];
+
+  const ibDepEl = document.getElementById('ib_dep');
+  if(ibDepEl){
+    ibFlightData.dep = ibDepEl.value.trim().toUpperCase();
+    ibFlightData.arr = document.getElementById('ib_arr').value.trim().toUpperCase();
+    ibFlightData.std = document.getElementById('ib_std').value;
+    ibFlightData.sta = document.getElementById('ib_sta').value;
+  }
+
   updatePfd();
   saveAppState();
 }
 
+let ibFlightData = {}; // Iberia: dep/arr/std/sta/eet for the header strip (AEA uses `state` instead)
+
 function updatePfd(){
-  document.getElementById('pfdDep').textContent = state.dep || '----';
-  document.getElementById('pfdArr').textContent = state.arr || '----';
-  document.getElementById('pfdStd').textContent = state.std || '--:--';
-  document.getElementById('pfdEta').textContent = state.eta || '--:--';
-  document.getElementById('pfdEet').textContent = state.eet || '--:--';
+  if(currentAirline === 'iberia'){
+    document.getElementById('pfdDep').textContent = ibFlightData.dep || '----';
+    document.getElementById('pfdArr').textContent = ibFlightData.arr || '----';
+    document.getElementById('pfdStd').textContent = ibFlightData.std || '--:--';
+    document.getElementById('pfdEta').textContent = ibFlightData.sta || '--:--';
+    document.getElementById('pfdEet').textContent = ibFlightData.eet || '--:--';
+  } else {
+    document.getElementById('pfdDep').textContent = state.dep || '----';
+    document.getElementById('pfdArr').textContent = state.arr || '----';
+    document.getElementById('pfdStd').textContent = state.std || '--:--';
+    document.getElementById('pfdEta').textContent = state.eta || '--:--';
+    document.getElementById('pfdEet').textContent = state.eet || '--:--';
+  }
 }
 
 function airportChip(code, tag){
@@ -5414,6 +5433,8 @@ function applyIberiaOfpData(data){
   setVal('routeText', data.routeText);
   if(data.alt) addAlt(data.alt);
   renderIberiaDepArr(data);
+  ibFlightData = data;
+  updatePfd();
 }
 
 // Iberia's OFP only gives us the plain DEP/ARR airport codes (no RWY/FROM/TO/APPROACH/WX MIN/FCST
@@ -5426,10 +5447,13 @@ function renderIberiaDepArr(data){
     el.innerHTML = '<p class="wx-empty">No se ha encontrado esta información en el OFP.</p>';
     return;
   }
-  el.innerHTML = `<div class="etopsdoc-row-grid">
-    <div><span class="k">DEPARTURE</span>${data.dep||'—'}</div>
-    <div><span class="k">ARRIVAL</span>${data.arr||'—'}</div>
-  </div>`;
+  function row(label, value){
+    return `<div class="row">
+      <div class="row-index" style="width:34px">${label}</div>
+      <div class="row-fields"><input readonly value="${value||''}"></div>
+    </div>`;
+  }
+  el.innerHTML = `<div class="rows">${row('DEP', data.dep)}${row('ARR', data.arr)}</div>`;
 }
 
 async function handleIberiaOfpUpload(fileList){
