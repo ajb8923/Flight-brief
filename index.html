@@ -634,7 +634,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
     <div class="card">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M12 3v18"/></svg>Departure / Arrival</h3>
-      <p class="sub">Se rellena sola al subir el OFP, desde "Origen Destino Alter Weather y Notams" de Documentación ETOPS.</p>
+      <p class="sub" id="etopsDocDepArrSub">Se rellena sola al subir el OFP, desde "Origen Destino Alter Weather y Notams" de Documentación ETOPS.</p>
       <div id="etopsDocDepArr"><p class="wx-empty">Sube el OFP en Setup para ver esta información.</p></div>
     </div>
 
@@ -5299,6 +5299,9 @@ function applyAirline(airline){
   document.getElementById('metarTabLabel').textContent = multi ? 'MET' : 'METAR/TAF';
   document.getElementById('aeaFlightDataCard').style.display = multi ? 'none' : '';
   document.getElementById('iberiaFlightDataCard').style.display = multi ? '' : 'none';
+  document.getElementById('etopsDocDepArrSub').textContent = multi
+    ? 'Se rellena sola al subir el OFP.'
+    : 'Se rellena sola al subir el OFP, desde "Origen Destino Alter Weather y Notams" de Documentación ETOPS.';
 }
 
 function handleOfpFileInput(fileList){
@@ -5321,6 +5324,112 @@ function guessIberiaRole(filename, takenRoles){
   if(n.includes('MET') && !takenRoles.has('metartaf')) return 'metartaf';
   if(n.includes('OFP') && !takenRoles.has('ofp')) return 'ofp';
   return null;
+}
+
+// Iberia OFP header parser — based on a marked-up screenshot, not yet verified against real
+// extracted PDF text (quirks between pdf.js and other extractors have bitten us before on this
+// project), so treat this as a first pass to correct once a real file is tested.
+// Field by field: callsign (IBE07KB), flight number (IB712), date (18OCT26), reg (ECNTP), CI,
+// dep/arr + DEP/ARR RWY + SID + STAR all parsed from the single route string
+// ("EGLLR27R.GOGSI2F...NONTU5C.LEMDR32L" — first token is DEP+R+RWY, second is SID, second-to-last
+// is STAR, last is ARR+R+RWY), STD/STA (paired with dep/arr's ICAO code), flight levels, EET/DST
+// (from the "MACH AREA CI FLIGHT" row), and the alternate ("ALT LEVD ...") — which goes to the
+// Alternativos list, not a Setup field, per instructions.
+function parseIberiaOfpText(text){
+  const t = text.replace(/\r/g,'');
+  const out = {};
+
+  let m = t.match(/\b(IBE[0-9A-Z]{2,5})\b/);
+  if(m) out.callsign = m[1];
+
+  // "IB 712" — pdf.js sometimes inserts a space between the airline code and the number
+  m = t.match(/\bIB\s?(\d{3,4})\b/);
+  if(m) out.flightNum = 'IB'+m[1];
+
+  m = t.match(/(?<!PRTD\s)\b(\d{2}[A-Z]{3}\d{2})\b/);
+  if(m) out.date = m[1];
+
+  m = t.match(/\b(EC[A-Z]{3})\b/);
+  if(m) out.reg = m[1];
+
+  m = t.match(/\bCI\s+(\d{1,3})\b/);
+  if(m) out.ci = m[1];
+
+  // route string: DEP+R+RWY . SID . waypoints... . STAR . ARR+R+RWY — pdf.js puts spaces after each
+  // dot and can wrap the line, so grab everything from the first token up to the flight-levels line
+  // (which always starts "F\d{3}"), then strip all whitespace to get back a clean dotted token list
+  const routeBlockM = t.match(/([A-Z]{4}R\d{1,2}[LRC]?\s*\.[\s\S]*?)\n\s*F\d{3}\s/);
+  if(routeBlockM){
+    const compact = routeBlockM[1].replace(/\s+/g,'');
+    out.routeText = compact;
+    const tokens = compact.split('.').filter(Boolean);
+    const firstM = tokens[0].match(/^([A-Z]{4})R(\d{1,2}[LRC]?)$/);
+    const lastM = tokens[tokens.length-1].match(/^([A-Z]{4})R(\d{1,2}[LRC]?)$/);
+    if(firstM){ out.dep = firstM[1]; out.depRwy = firstM[2]; }
+    if(lastM){ out.arr = lastM[1]; out.arrRwy = lastM[2]; }
+    if(tokens.length>=4){ out.sid = tokens[1]; out.star = tokens[tokens.length-2]; }
+  }
+
+  // STD/STA: find the time (HH.MM) immediately associated with the dep/arr ICAO code — this header
+  // row doesn't have the space-around-the-dot quirk the fuel/time table below has
+  const icaoTimes = [...t.matchAll(/\b([A-Z]{4})\b[^\n]{0,20}?(\d{2})\s*\.\s*(\d{2})/g)];
+  if(out.dep){ const e = icaoTimes.find(x=>x[1]===out.dep); if(e) out.std = e[2]+'.'+e[3]; }
+  if(out.arr){ const e = icaoTimes.find(x=>x[1]===out.arr); if(e) out.sta = e[2]+'.'+e[3]; }
+
+  m = t.match(/\bF\d{3}(?:\s+[A-Z0-9]+\/F\d{3})*/);
+  if(m) out.flightLevels = m[0];
+
+  // the fuel/time table (TIME, DST, ALT rows) has spaces around the decimal point: "01 . 53"
+  m = t.match(/MACH\s+AREA\s+CI\s+FLIGHT\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/);
+  if(m){ out.eet = m[1]+'.'+m[2]; out.dist = m[3]; }
+
+  m = t.match(/\bALT\s+([A-Z]{4})\s+\d{2}\s*\.\s*\d{2}/);
+  if(m) out.alt = m[1];
+
+  // A/C type code: a 6-digit block near the top, before the weight table (TRLD/DOW/ZFW...) starts
+  const cut = t.indexOf('TRLD');
+  const headerArea = t.slice(0, cut>0 ? cut : 400);
+  m = headerArea.match(/\b(\d{6})\b/);
+  if(m) out.acType = m[1];
+
+  return out;
+}
+
+function applyIberiaOfpData(data){
+  setVal('ib_dep', data.dep);
+  setVal('ib_arr', data.arr);
+  setVal('ib_std', data.std);
+  setVal('ib_sta', data.sta);
+  setVal('ib_flightNum', data.flightNum);
+  setVal('ib_reg', data.reg);
+  setVal('ib_callsign', data.callsign);
+  setVal('ib_acType', data.acType);
+  setVal('ib_date', data.date);
+  setVal('ib_ci', data.ci);
+  setVal('ib_dist', data.dist);
+  setVal('ib_depRwy', data.depRwy);
+  setVal('ib_sid', data.sid);
+  setVal('ib_arrRwy', data.arrRwy);
+  setVal('ib_star', data.star);
+  setVal('routeText', data.routeText);
+  if(data.alt) addAlt(data.alt);
+  renderIberiaDepArr(data);
+}
+
+// Iberia's OFP only gives us the plain DEP/ARR airport codes (no RWY/FROM/TO/APPROACH/WX MIN/FCST
+// detail like Documentación ETOPS gives for Air Europa), so this is a simpler display, not the same
+// rich table.
+function renderIberiaDepArr(data){
+  const el = document.getElementById('etopsDocDepArr');
+  if(!el) return;
+  if(!data.dep && !data.arr){
+    el.innerHTML = '<p class="wx-empty">No se ha encontrado esta información en el OFP.</p>';
+    return;
+  }
+  el.innerHTML = `<div class="etopsdoc-row-grid">
+    <div><span class="k">DEPARTURE</span>${data.dep||'—'}</div>
+    <div><span class="k">ARRIVAL</span>${data.arr||'—'}</div>
+  </div>`;
 }
 
 async function handleIberiaOfpUpload(fileList){
@@ -5365,15 +5474,33 @@ async function handleIberiaOfpUpload(fileList){
   const ofpEntry = iberiaFiles.find(e=>e.role==='ofp');
   const notamEntry = iberiaFiles.find(e=>e.role==='notam');
   const wxEntry = iberiaFiles.find(e=>e.role==='metartaf');
+
+  let ofpData = null, ofpDebugText = '';
+  if(ofpEntry){
+    try{
+      const buf = await ofpEntry.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf, verbosity: 0}).promise;
+      const page1 = await pdf.getPage(1);
+      ofpDebugText = await layoutPageText(page1);
+      ofpData = parseIberiaOfpText(ofpDebugText);
+      applyIberiaOfpData(ofpData);
+    }catch(e){
+      console.error(e);
+      setOfpStatus(`Error leyendo el OFP: ${e.message}`, true);
+    }
+  }
+
   document.getElementById('ofpDebugText').value = [
     ofpEntry ? 'OFP: '+ofpEntry.file.name : 'OFP: no identificado',
     notamEntry ? 'NOTAM: '+notamEntry.file.name : 'NOTAM: no identificado',
     wxEntry ? 'MET: '+wxEntry.file.name : 'MET: no identificado',
     unrecognized.length ? 'Sin identificar: '+unrecognized.map(e=>e.file.name).join(', ') : '',
+    ofpDebugText ? '\n--- Texto leído del OFP (página 1) ---\n'+ofpDebugText : '',
   ].filter(Boolean).join('\n');
 
   const identifiedCount = iberiaFiles.length - unrecognized.length;
-  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP/NOTAM/MET: todavía sin extracción de datos.`);
+  const ofpFieldsFound = ofpData ? Object.keys(ofpData).filter(k=>ofpData[k]).length : 0;
+  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. NOTAM/MET: todavía sin extracción de datos.`);
 }
 
 function selectAirline(airline){
