@@ -25,6 +25,42 @@
   --radius:14px;
 }
 
+/* Iberia theme: same dark shell, red corporate accent instead of Air Europa's amber */
+body[data-airline="iberia"]{
+  --amber:#e4002b;
+  --cyan:#4fb8d1;
+}
+
+.airline-landing{
+  position:fixed;inset:0;z-index:999;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.airline-landing-inner{width:100%;max-width:420px;text-align:center;}
+.airline-landing-logo{width:40px;height:40px;color:var(--amber);margin-bottom:14px;}
+.airline-landing-inner h1{font-size:22px;font-weight:600;color:var(--text);margin:0 0 6px;}
+.airline-landing-inner h1 b{color:var(--amber);font-weight:700;}
+.airline-landing-sub{color:var(--muted);font-size:13.5px;margin:0 0 28px;}
+.airline-landing-choices{display:flex;flex-direction:column;gap:12px;}
+.airline-choice{
+  display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:14px;
+  padding:16px 18px;cursor:pointer;text-align:left;transition:border-color .15s ease;
+}
+.airline-choice:hover{border-color:var(--amber);}
+.airline-choice-name{font-size:16px;font-weight:700;color:var(--text);}
+.airline-choice-sub{font-size:12px;color:var(--muted);}
+.airline-choice-aea:hover{border-color:#f2a900;}
+.airline-choice-iberia:hover{border-color:#e4002b;}
+
+.airline-switch-btn{
+  width:16px;height:16px;border-radius:50%;border:none;cursor:pointer;margin-left:2px;
+  background:var(--surface-2);position:relative;flex-shrink:0;
+}
+.airline-switch-btn::before{
+  content:"";position:absolute;inset:0;margin:auto;width:8px;height:8px;
+  border:1.5px solid var(--muted);border-top-color:transparent;border-radius:50%;
+}
+
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
 body{
@@ -448,13 +484,31 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="airlineLanding" class="airline-landing">
+  <div class="airline-landing-inner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="airline-landing-logo"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
+    <h1>Flight<b>Brief</b></h1>
+    <p class="airline-landing-sub">¿Con qué aerolínea vas a trabajar?</p>
+    <div class="airline-landing-choices">
+      <button class="airline-choice airline-choice-aea" onclick="selectAirline('aea')">
+        <span class="airline-choice-name">Air Europa</span>
+        <span class="airline-choice-sub">B787-9 / B787-8</span>
+      </button>
+      <button class="airline-choice airline-choice-iberia" onclick="selectAirline('iberia')">
+        <span class="airline-choice-name">Iberia</span>
+        <span class="airline-choice-sub">A319 / A320 / A321</span>
+      </button>
+    </div>
+  </div>
+</div>
+<div id="app" style="display:none">
 
   <div class="pfd">
     <div class="pfd-strip">
       <div class="pfd-brand">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
         <div class="name">Flight<b>Brief</b></div>
+        <button class="airline-switch-btn" id="airlineSwitchBtn" onclick="changeAirline()" title="Cambiar aerolínea"></button>
       </div>
       <div class="pfd-route" id="pfdRoute">
         <div class="pfd-city"><div class="code mono" id="pfdDep">----</div><div class="label">DEP</div></div>
@@ -498,10 +552,6 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       FTL <span class="dot off" id="dot-ftl"></span>
     </button>
-    <button class="tab" data-tab="qrh">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9s.5-2 3-2 3 1.5 2 3-3 2-3 4M12 17h.01"/></svg>
-      QRH <span class="dot off" id="dot-qrh"></span>
-    </button>
     <button class="tab" data-tab="briefing">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
       Briefing <span class="dot off" id="dot-briefing"></span>
@@ -512,9 +562,9 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
   <section class="panel active" id="panel-setup">
 
     <div class="card" id="ofpCard">
-      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>Subir OFP (PDF)</h3>
-      <p class="sub">Sube el PDF completo del despacho (formato nuevo con Documentación ETOPS, o el antiguo con página de planificación) para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.</p>
-      <input type="file" id="ofpFile" accept="application/pdf" onchange="handleOfpUpload(this.files[0])"
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg><span id="ofpCardTitle">Subir OFP (PDF)</span></h3>
+      <p class="sub" id="ofpCardSub">Sube el PDF completo del despacho (formato nuevo con Documentación ETOPS, o el antiguo con página de planificación) para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.</p>
+      <input type="file" id="ofpFile" accept="application/pdf" onchange="handleOfpFileInput(this.files)"
         style="font-family:'Inter',sans-serif;font-size:12.5px;color:var(--muted);width:100%">
       <div id="ofpStatus" class="sub" style="margin-top:10px"></div>
       <details open style="margin-top:10px">
@@ -5109,17 +5159,75 @@ function applyMapCardPrefs(){
   });
 }
 
-// initial state
-addAlt();
-document.getElementById('dot-setup').classList.remove('off');
-renderMapsView();
-if(loadAppState()){
-  setOfpStatus('Datos del último vuelo recuperados de este iPad.');
+// ================= AIRLINE SELECTION =================
+const AIRLINE_KEY = 'flightbrief_airline';
+let currentAirline = null;
+
+function applyAirline(airline){
+  currentAirline = airline;
+  document.body.dataset.airline = airline;
+  const multi = airline === 'iberia';
+  document.getElementById('ofpFile').multiple = multi;
+  document.getElementById('ofpCardTitle').textContent = multi ? 'Subir documentación de despacho (6 PDF)' : 'Subir OFP (PDF)';
+  document.getElementById('ofpCardSub').textContent = multi
+    ? 'Selecciona los 6 PDF del despacho de Iberia a la vez (mismo selector, elige varios archivos). Todo se procesa en el propio iPad, no se sube a ningún servidor.'
+    : 'Sube el PDF completo del despacho (formato nuevo con Documentación ETOPS, o el antiguo con página de planificación) para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.';
 }
-if(window.indexedDB) tryLoadMelFromIdb();
-loadWxApiUrl();
-loadProfileApiUrl();
-applyMapCardPrefs();
+
+function handleOfpFileInput(fileList){
+  if(currentAirline === 'iberia') handleIberiaOfpUpload(fileList);
+  else if(fileList[0]) handleOfpUpload(fileList[0]);
+}
+
+// Placeholder — Iberia's 6-document parsers aren't built yet; this just confirms the files are
+// selected so the picker can be wired up before we know what to look for in each one.
+function handleIberiaOfpUpload(fileList){
+  const files = Array.from(fileList);
+  if(!files.length) return;
+  const names = files.map(f=>f.name).join('\n');
+  setOfpStatus(`${files.length} archivo(s) seleccionado(s). Extracción de datos de Iberia aún no implementada.`);
+  document.getElementById('ofpDebugText').value = 'Archivos seleccionados:\n' + names;
+}
+
+function selectAirline(airline){
+  localStorage.setItem(AIRLINE_KEY, airline);
+  applyAirline(airline);
+  document.getElementById('airlineLanding').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  initAppOnce();
+}
+
+function changeAirline(){
+  if(!confirm('¿Cambiar de aerolínea? Tendrás que volver a elegir Air Europa o Iberia la próxima vez.')) return;
+  localStorage.removeItem(AIRLINE_KEY);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('airlineLanding').style.display = 'flex';
+}
+
+let appInitialized = false;
+function initAppOnce(){
+  if(appInitialized) return;
+  appInitialized = true;
+  addAlt();
+  document.getElementById('dot-setup').classList.remove('off');
+  renderMapsView();
+  if(loadAppState()){
+    setOfpStatus('Datos del último vuelo recuperados de este iPad.');
+  }
+  if(window.indexedDB) tryLoadMelFromIdb();
+  loadWxApiUrl();
+  loadProfileApiUrl();
+  applyMapCardPrefs();
+}
+
+// skip the landing screen if an airline was already chosen on this device
+const savedAirline = localStorage.getItem(AIRLINE_KEY);
+if(savedAirline){
+  applyAirline(savedAirline);
+  document.getElementById('airlineLanding').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  initAppOnce();
+}
 </script>
 </body>
 </html>
