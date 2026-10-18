@@ -574,7 +574,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       </details>
     </div>
 
-    <div class="card">
+    <div class="card" id="aeaFlightDataCard">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-11M12 6V3M20 21v-5M20 12V3M1 14h6M9 6h6M17 16h6"/></svg>Datos de vuelo</h3>
       <p class="sub">Se rellena solo al subir el OFP en Setup. ICAO o IATA en Departure/Arrival — se aceptan ambos formatos.</p>
 
@@ -604,6 +604,31 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <div class="fuel-row" style="display:none"><label>Taxi (min)</label><div class="fuel-row-inputs single"><input id="taxi" type="number" placeholder="15" oninput="onSetupChange()"></div></div>
         <div class="fuel-row" style="display:none"><label>EET</label><div class="fuel-row-inputs single"><input id="eet" placeholder="10:45" oninput="onSetupChange()"></div></div>
         <div class="fuel-row" style="display:none"><label>Mach crucero</label><div class="fuel-row-inputs single"><input id="mach" placeholder="0.78" oninput="onSetupChange()"></div></div>
+      </div>
+    </div>
+
+    <div class="card" id="iberiaFlightDataCard" style="display:none">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-11M12 6V3M20 21v-5M20 12V3M1 14h6M9 6h6M17 16h6"/></svg>Datos de vuelo</h3>
+      <p class="sub">Se rellenará sola al subir la documentación en Setup.</p>
+      <div class="grid2">
+        <div class="fuel-row"><label>DEP</label><div class="fuel-row-inputs single"><input id="ib_dep" placeholder="LEMD" maxlength="4" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>ARRIVAL</label><div class="fuel-row-inputs single"><input id="ib_arr" placeholder="LEBL" maxlength="4" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>STD</label><div class="fuel-row-inputs single"><input id="ib_std" placeholder="21:45" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>STA</label><div class="fuel-row-inputs single"><input id="ib_sta" placeholder="23:10" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row-divider"></div>
+        <div class="fuel-row"><label>FLT Nº</label><div class="fuel-row-inputs single"><input id="ib_flightNum" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>REG</label><div class="fuel-row-inputs single"><input id="ib_reg" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>CALL SIGN</label><div class="fuel-row-inputs single"><input id="ib_callsign" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>A/C</label><div class="fuel-row-inputs single"><input id="ib_acType" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>DATE</label><div class="fuel-row-inputs single"><input id="ib_date" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>CI</label><div class="fuel-row-inputs single"><input id="ib_ci" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row-divider"></div>
+        <div class="fuel-row"><label>T/O ALTN</label><div class="fuel-row-inputs single"><input id="ib_tofAltn" placeholder="NIL" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>DIST</label><div class="fuel-row-inputs single"><input id="ib_dist" placeholder="420NM" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>DEP RWY</label><div class="fuel-row-inputs single"><input id="ib_depRwy" placeholder="36L" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>SID</label><div class="fuel-row-inputs single"><input id="ib_sid" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>ARR RWY</label><div class="fuel-row-inputs single"><input id="ib_arrRwy" placeholder="25R" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>STAR</label><div class="fuel-row-inputs single"><input id="ib_star" oninput="onSetupChange()"></div></div>
       </div>
     </div>
 
@@ -5272,6 +5297,8 @@ function applyAirline(airline){
     ? 'Selecciona los 6 PDF del despacho de Iberia a la vez (mismo selector, elige varios archivos) — se identifican y reparten solos por su nombre. Todo se procesa en el propio iPad, no se sube a ningún servidor.'
     : 'Sube el PDF completo del despacho (formato nuevo con Documentación ETOPS, o el antiguo con página de planificación) para rellenar Setup automáticamente — luego revisa y corrige lo que haga falta. Todo se procesa en el propio iPad, no se sube a ningún servidor.';
   document.getElementById('metarTabLabel').textContent = multi ? 'MET' : 'METAR/TAF';
+  document.getElementById('aeaFlightDataCard').style.display = multi ? 'none' : '';
+  document.getElementById('iberiaFlightDataCard').style.display = multi ? '' : 'none';
 }
 
 function handleOfpFileInput(fileList){
