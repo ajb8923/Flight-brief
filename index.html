@@ -549,6 +549,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       FTL <span class="dot off" id="dot-ftl"></span>
     </button>
+    <button class="tab" data-tab="qrh" id="qrhTabBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9s.5-2 3-2 3 1.5 2 3-3 2-3 4M12 17h.01"/></svg>
+      QRH <span class="dot off" id="dot-qrh"></span>
+    </button>
     <button class="tab" data-tab="briefing">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
       Briefing <span class="dot off" id="dot-briefing"></span>
@@ -867,7 +871,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <p class="sub">Datos públicos de aviationweather.gov a través de tu propio proxy (sin coste — ver <span class="mono">flightbrief-wx-worker.js</span>). No sustituye a los aeropuertos del OFP de arriba, es para consultar cualquier otro.</p>
       <details style="margin-bottom:10px">
         <summary class="link-btn" style="cursor:pointer">URL del proxy</summary>
-        <input id="wxApiUrl" placeholder="https://flightbrief-wx.tu-usuario.workers.dev" oninput="saveWxApiUrl()" style="margin-top:8px">
+        <input id="wxApiUrl" placeholder="https://flightbrief-wx.tu-usuario.workers.dev" value="https://flightbrief-wx.alvarojbonny.workers.dev/" oninput="saveWxApiUrl()" style="margin-top:8px">
       </details>
       <div class="fuel-row"><label>ICAO</label><div class="fuel-row-inputs single"><input id="liveWxIcao" placeholder="LEMD" maxlength="4" style="text-transform:uppercase" onkeydown="if(event.key==='Enter') searchLiveWx()"></div></div>
       <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="searchLiveWx()">
@@ -936,7 +940,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <p class="sub">Cima de nubes y turbulencia por FL, en el eje de tiempo de tu vuelo — datos globales de Open-Meteo/ECMWF vía tu propio proxy. <b style="color:var(--amber)">Son estimaciones propias</b> (cizallamiento del viento y umbrales de nubosidad), no productos certificados — no sustituyen a SIGWX/SIGMET. Toca el gráfico o usa el deslizador para ver el detalle en ese momento del vuelo.</p>
       <details style="margin-bottom:10px">
         <summary class="link-btn" style="cursor:pointer">URL del proxy de perfil</summary>
-        <input id="profileApiUrl" placeholder="https://flightbrief-profile.tu-usuario.workers.dev" oninput="saveProfileApiUrl()" style="margin-top:8px">
+        <input id="profileApiUrl" placeholder="https://flightbrief-profile.tu-usuario.workers.dev" value="https://flightbrief-profile.alvarojbonny.workers.dev/" oninput="saveProfileApiUrl()" style="margin-top:8px">
       </details>
       <button class="btn btn-primary btn-sm" onclick="generateVerticalProfile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
@@ -4081,37 +4085,89 @@ function calcIberiaFuel(){
 // ================= LOCAL PERSISTENCE =================
 // Saves everything except the chart images (too heavy for localStorage — those need a re-upload to regenerate).
 
-const STORAGE_KEY = 'flightbrief_v1';
+// Air Europa and Iberia keep entirely separate saved sessions, so uploading one airline's dispatch
+// never shows up on the other — switching airlines recalls whatever was last saved for that one
+// (or starts blank if nothing has been saved there yet).
+function getStorageKey(){
+  return currentAirline === 'iberia' ? 'flightbrief_v1_iberia' : 'flightbrief_v1_aea';
+}
+
+let suppressSave = false; // true only while resetSharedAppData() is rebuilding the blank UI
 
 function saveAppState(){
+  if(suppressSave) return;
   try{
-    const extra = {};
-    document.querySelectorAll('input[id^="add_"]').forEach(el=>{ extra[el.id]=el.value; });
-    const fuel = {};
-    document.querySelectorAll('input[id^="fuel"]').forEach(el=>{ fuel[el.id]=el.value; });
     const payload = {
-      v:1,
-      state,
-      extra, fuel,
-      wxDataMap, notamDataMap,
-      chartMeta: mapsChartList.map(c=>({page:c.page, name:c.name, phenomena:c.phenomena})) // no dataUrl — re-upload the OFP to get the images back
+      v:1, airline: currentAirline, state, wxDataMap, notamDataMap,
+      chartMeta: mapsChartList.map(c=>({page:c.page, name:c.name, phenomena:c.phenomena, sourceLabel:c.sourceLabel, rotation:c.rotation})) // no dataUrl — re-upload to get the images back
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    if(currentAirline === 'iberia'){
+      payload.ibFlightData = ibFlightData;
+      const ib = {};
+      document.querySelectorAll('input[id^="ib_"]').forEach(el=>{ ib[el.id]=el.value; });
+      payload.ibFields = ib;
+    } else {
+      const extra = {};
+      document.querySelectorAll('input[id^="add_"]').forEach(el=>{ extra[el.id]=el.value; });
+      const fuel = {};
+      document.querySelectorAll('input[id^="fuel"]').forEach(el=>{ fuel[el.id]=el.value; });
+      payload.extra = extra; payload.fuel = fuel;
+    }
+    localStorage.setItem(getStorageKey(), JSON.stringify(payload));
   }catch(e){ console.warn('No se pudo guardar el estado local:', e); }
+}
+
+// Resets every shared variable/field to blank — used before loading an airline's own save, so
+// nothing left over from the other airline can leak through when there's nothing saved yet.
+function resetSharedAppData(){
+  suppressSave = true;
+  state = { dep:'', arr:'', std:'', eta:'', taxi:'', eet:'', mach:'',
+    alternates: [], etopsOn:false, etopsPoints: [], routeText:'', ofpWindows: {} };
+  wxDataMap = {};
+  notamDataMap = {};
+  mapsChartList = [];
+  ibFlightData = {};
+  lastAircraftStatus = null;
+  selectedWxAirport = null;
+  selectedNotamAirport = null;
+  selectedChartIdx = null;
+
+  document.getElementById('altRows').innerHTML=''; altSeq=0;
+  document.getElementById('etopsRows').innerHTML=''; etopsSeq=0;
+  document.getElementById('etopsToggle').checked = false;
+  document.getElementById('etopsBlock').style.display = 'none';
+  document.querySelectorAll('input[id^="add_"]').forEach(el=>{ el.value=''; });
+  document.querySelectorAll('input[id^="fuel"]').forEach(el=>{ el.value=''; });
+  document.querySelectorAll('input[id^="ib_"]').forEach(el=>{ el.value=''; });
+  ['routeText','dep','arr','std','eta','taxi','eet'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  addAlt();
+  suppressSave = false;
 }
 
 function loadAppState(){
   let payload;
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     if(!raw) return false;
     payload = JSON.parse(raw);
   }catch(e){ console.warn('No se pudo leer el estado guardado:', e); return false; }
   if(!payload || !payload.state) return false;
 
   Object.assign(state, payload.state);
-  setVal('dep', state.dep); setVal('arr', state.arr); setVal('std', state.std); setVal('eta', state.eta);
-  setVal('taxi', state.taxi); setVal('eet', state.eet); setVal('mach', state.mach);
+
+  if(currentAirline === 'iberia'){
+    ibFlightData = payload.ibFlightData || {};
+    if(payload.ibFields) Object.keys(payload.ibFields).forEach(id=>setVal(id, payload.ibFields[id]));
+    renderIberiaDepArr(ibFlightData);
+  } else {
+    setVal('dep', state.dep); setVal('arr', state.arr); setVal('std', state.std); setVal('eta', state.eta);
+    setVal('taxi', state.taxi); setVal('eet', state.eet); setVal('mach', state.mach);
+    if(payload.extra) Object.keys(payload.extra).forEach(id=>setVal(id, payload.extra[id]));
+    if(payload.fuel) Object.keys(payload.fuel).forEach(id=>setVal(id, payload.fuel[id]));
+  }
   if(document.getElementById('routeText')) document.getElementById('routeText').value = state.routeText||'';
 
   document.getElementById('altRows').innerHTML=''; altSeq=0;
@@ -4134,13 +4190,12 @@ function loadAppState(){
     });
   }
 
-  if(payload.extra) Object.keys(payload.extra).forEach(id=>setVal(id, payload.extra[id]));
-  if(payload.fuel) Object.keys(payload.fuel).forEach(id=>setVal(id, payload.fuel[id]));
   if(payload.wxDataMap) wxDataMap = payload.wxDataMap;
   if(payload.notamDataMap) notamDataMap = payload.notamDataMap;
 
   onSetupChange();
-  calcFuel();
+  if(currentAirline === 'iberia') calcIberiaFuel(); else calcFuel();
+  updatePfd();
   document.getElementById('dot-setup').classList.remove('off');
   if(state.dep || state.arr){
     ['fuel','acstatus','metar','notam','mapas','ftl','qrh','briefing'].forEach(t=>{
@@ -4149,6 +4204,18 @@ function loadAppState(){
     });
   }
   return true;
+}
+
+// Called every time an airline is (re)selected, including switching mid-session — resets first so
+// the other airline's data can never show through, then recalls this airline's own save if any.
+function loadAirlineData(){
+  resetSharedAppData();
+  if(loadAppState()){
+    setOfpStatus('Datos del último vuelo recuperados de este iPad.');
+  } else {
+    setOfpStatus('');
+  }
+  renderMapsView();
 }
 
 // ================= A/C STATUS / MEL ENGINE =================
@@ -5512,6 +5579,7 @@ function applyAirline(airline){
   document.body.dataset.airline = airline;
   const multi = airline === 'iberia';
   document.getElementById('ofpFile').multiple = multi;
+  document.getElementById('ofpFile').value = ''; // clear the filename shown from whatever airline was selected before
   document.getElementById('ofpCardTitle').textContent = multi ? 'Subir documentación de despacho (6 PDF)' : 'Subir OFP (PDF)';
   document.getElementById('ofpCardSub').textContent = multi
     ? 'Selecciona los 6 PDF del despacho de Iberia a la vez (mismo selector, elige varios archivos) — se identifican y reparten solos por su nombre. Todo se procesa en el propio iPad, no se sube a ningún servidor.'
@@ -5526,6 +5594,9 @@ function applyAirline(airline){
   document.getElementById('etopsDocDepArrSub').textContent = multi
     ? 'Se rellena sola al subir el OFP.'
     : 'Se rellena sola al subir el OFP, desde "Origen Destino Alter Weather y Notams" de Documentación ETOPS.';
+  const qrhBtn = document.getElementById('qrhTabBtn');
+  qrhBtn.style.display = multi ? 'none' : '';
+  if(multi && qrhBtn.classList.contains('active')) switchTab('setup');
 }
 
 function handleOfpFileInput(fileList){
@@ -5881,6 +5952,7 @@ function selectAirline(airline){
   document.getElementById('airlineLanding').style.display = 'none';
   document.getElementById('app').style.display = '';
   initAppOnce();
+  loadAirlineData();
 }
 
 function changeAirline(){
@@ -5889,16 +5961,14 @@ function changeAirline(){
   document.getElementById('airlineLanding').style.display = 'flex';
 }
 
+// Things that only ever need to happen once per page load, regardless of which airline is active —
+// loading each airline's own saved session happens separately, in loadAirlineData(), every time an
+// airline is (re)selected.
 let appInitialized = false;
 function initAppOnce(){
   if(appInitialized) return;
   appInitialized = true;
-  addAlt();
   document.getElementById('dot-setup').classList.remove('off');
-  renderMapsView();
-  if(loadAppState()){
-    setOfpStatus('Datos del último vuelo recuperados de este iPad.');
-  }
   if(window.indexedDB) tryLoadMelFromIdb();
   loadWxApiUrl();
   loadProfileApiUrl();
@@ -5912,6 +5982,7 @@ if(savedAirline){
   document.getElementById('airlineLanding').style.display = 'none';
   document.getElementById('app').style.display = '';
   initAppOnce();
+  loadAirlineData();
 }
 </script>
 </body>
