@@ -684,7 +684,76 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
   <!-- ================= FUEL ================= -->
   <section class="panel" id="panel-fuel">
-    <div class="card">
+    <div class="card" id="iberiaFuelCard" style="display:none">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-6 0v4M5 9h14l-1 11H6L5 9z"/></svg>Combustible (OFP)</h3>
+      <p class="sub">Se rellena sola al subir el OFP en Setup. Peso en KG, tiempo en formato HH.MM (con punto, como en el OFP). Puedes corregir cualquier campo a mano.</p>
+
+      <div class="fuel-cols">
+        <div class="fuel-col">
+          <div class="fuel-col-title">WEIGHT PLAN</div>
+          <div class="fuel-row"><label>TRLD</label><div class="fuel-row-inputs single"><input id="ib_fuel_trld" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>DOW</label><div class="fuel-row-inputs single"><input id="ib_fuel_dow" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>ZFW</label><div class="fuel-row-inputs eq"><input id="ib_fuel_zfw" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_zfwMax" type="number" placeholder="máx" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>TOF</label><div class="fuel-row-inputs eq"><input id="ib_fuel_tof" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_tofMax" type="number" placeholder="máx" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>TOW</label><div class="fuel-row-inputs eq"><input id="ib_fuel_tow" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_towMax" type="number" placeholder="máx" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>TPF</label><div class="fuel-row-inputs single"><input id="ib_fuel_tpf" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>LGW</label><div class="fuel-row-inputs eq"><input id="ib_fuel_lgw" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_lgwMax" type="number" placeholder="máx" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>PAX</label><div class="fuel-row-inputs single"><input id="ib_fuel_pax" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>FRG</label><div class="fuel-row-inputs single"><input id="ib_fuel_frg" type="number" oninput="calcIberiaFuel()"></div></div>
+        </div>
+
+        <div class="fuel-col">
+          <div class="fuel-col-title">FUEL · TIME</div>
+          <div class="fuel-row"><label>Taxi+APU</label><div class="fuel-row-inputs"><input id="ib_fuel_taxiapu_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_taxiapu_t" type="text" placeholder="00.19" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Trip</label><div class="fuel-row-inputs"><input id="ib_fuel_trip_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_trip_t" type="text" placeholder="01.53" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Hold</label><div class="fuel-row-inputs"><input id="ib_fuel_hold_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_hold_t" type="text" placeholder="00.05" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Contingency</label><div class="fuel-row-inputs"><input id="ib_fuel_cont_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_cont_t" type="text" placeholder="00.06" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Alt</label><div class="fuel-row-inputs"><input id="ib_fuel_alt_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_alt_t" type="text" placeholder="00.41" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Final res</label><div class="fuel-row-inputs"><input id="ib_fuel_finalres_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_finalres_t" type="text" placeholder="00.30" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Additional</label><div class="fuel-row-inputs"><input id="ib_fuel_additional_kg" type="number" oninput="calcIberiaFuel()"><input id="ib_fuel_additional_t" type="text" placeholder="00.00" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Unusable</label><div class="fuel-row-inputs single"><input id="ib_fuel_unusable" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Extra</label><div class="fuel-row-inputs single"><input id="ib_fuel_extra" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Tanker</label><div class="fuel-row-inputs single"><input id="ib_fuel_tanker" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Disc</label><div class="fuel-row-inputs single"><input id="ib_fuel_disc" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Ramp fuel</label><div class="fuel-row-inputs single"><input id="ib_fuel_ramp" type="number" oninput="calcIberiaFuel()"></div></div>
+          <div class="fuel-row"><label>Min fuel altn</label><div class="fuel-row-inputs single"><input id="ib_fuel_minFuelAltn" type="number" oninput="calcIberiaFuel()"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="iberiaFuelCalcCard" style="display:none">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Discrecional disponible</h3>
+      <p class="sub">Ramp fuel − Trip − Taxi+APU, menos Min fuel altn — convertido a tiempo con la proporción de Final res.</p>
+
+      <div class="ftl-result">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Paso 1 — Ramp fuel − Trip − Taxi+APU</div>
+          <div class="num" id="ibFuelStep1">--</div>
+          <div class="sub" id="ibFuelStep1Formula" style="margin-top:2px"></div>
+        </div>
+        <span class="badge" id="ibFuelStep1Badge">Pendiente</span>
+      </div>
+
+      <div class="ftl-result" style="margin-top:10px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Paso 2 — menos Min fuel altn</div>
+          <div class="num" id="ibFuelStep2">--</div>
+          <div class="sub" id="ibFuelStep2Formula" style="margin-top:2px"></div>
+        </div>
+        <span class="badge" id="ibFuelStep2Badge">Pendiente</span>
+      </div>
+
+      <div class="ftl-result" style="margin-top:10px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Equivalente en tiempo</div>
+          <div class="num" id="ibFuelStep3">--:--</div>
+          <div class="sub" id="ibFuelStep3Formula" style="margin-top:2px"></div>
+        </div>
+        <span class="badge" id="ibFuelStep3Badge">Pendiente</span>
+      </div>
+    </div>
+
+    <div class="card" id="aeaFuelCard">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-6 0v4M5 9h14l-1 11H6L5 9z"/></svg>Combustible (OFP)</h3>
       <p class="sub">Se rellena solo al subir el OFP en Setup — mismo orden que "FLIGHT PLAN BASED ON...". Peso en KG, tiempo en formato HH.MM (con punto, como en el OFP). Puedes corregir cualquier campo a mano.</p>
 
@@ -721,7 +790,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="aeaFuelCalcCard">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Discrecional disponible</h3>
       <p class="sub">Total fuel − Trip − Taxy out, menos Min div — convertido a tiempo con la proporción de Final res. Los kg se muestran redondeados a la centena superior (en toneladas).</p>
 
@@ -3877,6 +3946,65 @@ function calcFuel(){
   step3F.textContent = `${step2} / ${finalResKg} × ${finalResMin} min = ${timeMin.toFixed(1)} min`;
 }
 
+function calcIberiaFuel(){
+  saveAppState();
+  const ramp = fuelNum('ib_fuel_ramp');
+  const trip = fuelNum('ib_fuel_trip_kg');
+  const taxiapu = fuelNum('ib_fuel_taxiapu_kg');
+  const minFuelAltn = fuelNum('ib_fuel_minFuelAltn');
+  const finalResKg = fuelNum('ib_fuel_finalres_kg');
+  const finalResMin = parseHM('ib_fuel_finalres_t');
+
+  const step1El = document.getElementById('ibFuelStep1');
+  const step1Badge = document.getElementById('ibFuelStep1Badge');
+  const step1F = document.getElementById('ibFuelStep1Formula');
+  const step2El = document.getElementById('ibFuelStep2');
+  const step2Badge = document.getElementById('ibFuelStep2Badge');
+  const step2F = document.getElementById('ibFuelStep2Formula');
+  const step3El = document.getElementById('ibFuelStep3');
+  const step3Badge = document.getElementById('ibFuelStep3Badge');
+  const step3F = document.getElementById('ibFuelStep3Formula');
+
+  if(ramp==null || trip==null || taxiapu==null){
+    step1El.textContent = '--'; step1Badge.textContent = 'Pendiente'; step1Badge.className = 'badge pending'; step1F.textContent = '';
+    step2El.textContent = '--'; step2Badge.textContent = 'Pendiente'; step2Badge.className = 'badge pending'; step2F.textContent = '';
+    step3El.textContent = '--:--'; step3Badge.textContent = 'Pendiente'; step3Badge.className = 'badge pending'; step3F.textContent = '';
+    return;
+  }
+
+  const step1 = ramp - trip - taxiapu;
+  step1El.textContent = formatKgTons(step1);
+  step1Badge.textContent = 'Calculado';
+  step1Badge.className = 'badge ok';
+  step1F.textContent = `${ramp} − ${trip} − ${taxiapu} = ${step1} kg`;
+
+  if(minFuelAltn==null){
+    step2El.textContent = '--'; step2Badge.textContent = 'Falta Min fuel altn'; step2Badge.className = 'badge pending'; step2F.textContent = '';
+    step3El.textContent = '--:--'; step3Badge.textContent = 'Pendiente'; step3Badge.className = 'badge pending'; step3F.textContent = '';
+    return;
+  }
+
+  const step2 = step1 - minFuelAltn;
+  step2El.textContent = formatKgTons(step2);
+  step2Badge.textContent = step2>=0 ? 'Calculado' : 'Negativo';
+  step2Badge.className = step2>=0 ? 'badge ok' : 'badge err';
+  step2F.textContent = `${step1} − ${minFuelAltn} = ${step2} kg`;
+
+  if(finalResKg==null || finalResMin==null || finalResKg<=0){
+    step3El.textContent = '--:--'; step3Badge.textContent = 'Falta Final res'; step3Badge.className = 'badge pending'; step3F.textContent = '';
+    return;
+  }
+
+  const timeMin = (step2 / finalResKg) * finalResMin;
+  const sign = timeMin<0 ? '-' : '';
+  const absMin = Math.abs(timeMin);
+  const hh = Math.floor(absMin/60), mm = Math.round(absMin%60);
+  step3El.textContent = `${sign}${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  step3Badge.textContent = 'Calculado';
+  step3Badge.className = timeMin>=0 ? 'badge ok' : 'badge err';
+  step3F.textContent = `${step2} / ${finalResKg} × ${finalResMin} min = ${timeMin.toFixed(1)} min`;
+}
+
 // ================= LOCAL PERSISTENCE =================
 // Saves everything except the chart images (too heavy for localStorage — those need a re-upload to regenerate).
 
@@ -5318,6 +5446,10 @@ function applyAirline(airline){
   document.getElementById('metarTabLabel').textContent = multi ? 'MET' : 'METAR/TAF';
   document.getElementById('aeaFlightDataCard').style.display = multi ? 'none' : '';
   document.getElementById('iberiaFlightDataCard').style.display = multi ? '' : 'none';
+  document.getElementById('aeaFuelCard').style.display = multi ? 'none' : '';
+  document.getElementById('aeaFuelCalcCard').style.display = multi ? 'none' : '';
+  document.getElementById('iberiaFuelCard').style.display = multi ? '' : 'none';
+  document.getElementById('iberiaFuelCalcCard').style.display = multi ? '' : 'none';
   document.getElementById('etopsDocDepArrSub').textContent = multi
     ? 'Se rellena sola al subir el OFP.'
     : 'Se rellena sola al subir el OFP, desde "Origen Destino Alter Weather y Notams" de Documentación ETOPS.';
@@ -5437,6 +5569,75 @@ function applyIberiaOfpData(data){
   updatePfd();
 }
 
+// Fuel/weight block of the same Iberia OFP page — WEIGHT PLAN (TRLD/DOW/ZFW/TOF/TOW/TPF/LGW/PAX/FRG)
+// and FUEL·TIME (each row is a kg value + its own HH.MM time, matching the OFP layout). Checked
+// against the real extracted text, including the space-around-the-dot quirk in this table.
+function parseIberiaFuelText(text){
+  const t = text;
+  const out = {};
+  let m;
+  m = t.match(/\bTRLD\s+(\d+)/); if(m) out.trld = m[1];
+  m = t.match(/\bDOW\s+(\d+)/); if(m) out.dow = m[1];
+  m = t.match(/\bZFW\s+(\d+)\s+(\d+)/); if(m){ out.zfw=m[1]; out.zfwMax=m[2]; }
+  m = t.match(/\bTOF\s+(\d+)\s+(\d+)/); if(m){ out.tof=m[1]; out.tofMax=m[2]; }
+  m = t.match(/\bTOW\s+(\d+)\s+(\d+)/); if(m){ out.tow=m[1]; out.towMax=m[2]; }
+  m = t.match(/\bTPF\s+(\d+)\b/); if(m) out.tpf = m[1];
+  m = t.match(/\bLGW\s+(\d+)\s+(\d+)/); if(m){ out.lgw=m[1]; out.lgwMax=m[2]; }
+  m = t.match(/\bPAX:\s+(\d+)/); if(m) out.pax = m[1];
+  m = t.match(/\bFRG:\s+(\d+)/); if(m) out.frg = m[1];
+  m = t.match(/\bTAXI\+APU\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.taxiapu_t=m[1]+'.'+m[2]; out.taxiapu_kg=m[3]; }
+  m = t.match(/\bTRIP\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.trip_t=m[1]+'.'+m[2]; out.trip_kg=m[3]; }
+  m = t.match(/\bHOLD\s+\S+\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.hold_t=m[1]+'.'+m[2]; out.hold_kg=m[3]; }
+  m = t.match(/\bCONTINGENCY\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.cont_t=m[1]+'.'+m[2]; out.cont_kg=m[3]; }
+  m = t.match(/\bALT\s+\S+\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.alt_t=m[1]+'.'+m[2]; out.alt_kg=m[3]; }
+  m = t.match(/\bFINAL\s+RES\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.finalres_t=m[1]+'.'+m[2]; out.finalres_kg=m[3]; }
+  m = t.match(/\bADDITIONAL\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/); if(m){ out.additional_t=m[1]+'.'+m[2]; out.additional_kg=m[3]; }
+  m = t.match(/\bUNUSABLE\s+(\d+)/); if(m) out.unusable = m[1];
+  m = t.match(/\bEXTRA\s+(\d+)/); if(m) out.extra = m[1];
+  m = t.match(/\bTANKER\s+(\d+)/); if(m) out.tanker = m[1];
+  m = t.match(/\bDISC\s+(\d+)/); if(m) out.disc = m[1];
+  m = t.match(/\bRAMP\s+FUEL\s+(\d+)/); if(m) out.ramp = m[1];
+  m = t.match(/\bMIN\s+FUEL\s+ALTN\s+\S+\s+(\d+)/); if(m) out.minFuelAltn = m[1];
+  return out;
+}
+
+function applyIberiaFuelData(data){
+  setVal('ib_fuel_trld', data.trld);
+  setVal('ib_fuel_dow', data.dow);
+  setVal('ib_fuel_zfw', data.zfw);
+  setVal('ib_fuel_zfwMax', data.zfwMax);
+  setVal('ib_fuel_tof', data.tof);
+  setVal('ib_fuel_tofMax', data.tofMax);
+  setVal('ib_fuel_tow', data.tow);
+  setVal('ib_fuel_towMax', data.towMax);
+  setVal('ib_fuel_tpf', data.tpf);
+  setVal('ib_fuel_lgw', data.lgw);
+  setVal('ib_fuel_lgwMax', data.lgwMax);
+  setVal('ib_fuel_pax', data.pax);
+  setVal('ib_fuel_frg', data.frg);
+  setVal('ib_fuel_taxiapu_kg', data.taxiapu_kg);
+  setVal('ib_fuel_taxiapu_t', data.taxiapu_t);
+  setVal('ib_fuel_trip_kg', data.trip_kg);
+  setVal('ib_fuel_trip_t', data.trip_t);
+  setVal('ib_fuel_hold_kg', data.hold_kg);
+  setVal('ib_fuel_hold_t', data.hold_t);
+  setVal('ib_fuel_cont_kg', data.cont_kg);
+  setVal('ib_fuel_cont_t', data.cont_t);
+  setVal('ib_fuel_alt_kg', data.alt_kg);
+  setVal('ib_fuel_alt_t', data.alt_t);
+  setVal('ib_fuel_finalres_kg', data.finalres_kg);
+  setVal('ib_fuel_finalres_t', data.finalres_t);
+  setVal('ib_fuel_additional_kg', data.additional_kg);
+  setVal('ib_fuel_additional_t', data.additional_t);
+  setVal('ib_fuel_unusable', data.unusable);
+  setVal('ib_fuel_extra', data.extra);
+  setVal('ib_fuel_tanker', data.tanker);
+  setVal('ib_fuel_disc', data.disc);
+  setVal('ib_fuel_ramp', data.ramp);
+  setVal('ib_fuel_minFuelAltn', data.minFuelAltn);
+  calcIberiaFuel();
+}
+
 // Iberia's OFP only gives us the plain DEP/ARR airport codes (no RWY/FROM/TO/APPROACH/WX MIN/FCST
 // detail like Documentación ETOPS gives for Air Europa), so this is a simpler display, not the same
 // rich table.
@@ -5508,6 +5709,7 @@ async function handleIberiaOfpUpload(fileList){
       ofpDebugText = await layoutPageText(page1);
       ofpData = parseIberiaOfpText(ofpDebugText);
       applyIberiaOfpData(ofpData);
+      applyIberiaFuelData(parseIberiaFuelText(ofpDebugText));
     }catch(e){
       console.error(e);
       setOfpStatus(`Error leyendo el OFP: ${e.message}`, true);
