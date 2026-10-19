@@ -2747,6 +2747,40 @@ function extractAirportNotamBlock(bulletinText, icao){
   return m ? m[1] : null;
 }
 
+// Iberia's NOTAM PDF groups entries under a plain "ICAO / IATA" header line (no "====" divider —
+// the next airport's header line is the boundary instead), and NOTAM IDs run 2-5 letters (not AEA's
+// 1-4), sometimes with a space before the digits ("IBE 00456/26"). Each page repeats a header block
+// ("No válido para el vuelo" + "Official Pilot Briefing" + ... + "Creation Time: ...") that can land
+// mid-entry, same kind of page-break issue as the AEA bulletin had.
+const IB_NOTAM_ID_RE = /^\*?[A-Z]{2,5}\s?\d{4,5}\/\d{2}\b/;
+
+function extractIberiaAirportBlock(text, icao){
+  const re = new RegExp('\\n'+icao+'\\s*/\\s*[A-Z]{3}\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]{4}\\s*/\\s*[A-Z]{3}\\s*\\n|\\n\\s*ENROUTE INFORMATION|$)', 'i');
+  const m = text.match(re);
+  return m ? m[1] : null;
+}
+
+function splitIberiaNotamEntries(blockText){
+  const cleaned = blockText.replace(/No válido para el vuelo\s*Official Pilot Briefing[\s\S]*?Creation Time:[^\n]*\n/g, '\n');
+  let parts = cleaned.split(/\n(?=\*?[A-Z]{2,5}\s?\d{4,5}\/\d{2}\b)/)
+    .map(s=>s.trim())
+    .filter(Boolean);
+  if(parts.length && !IB_NOTAM_ID_RE.test(parts[0])) parts.shift();
+  return parts;
+}
+
+function buildIberiaNotamMap(text, airports){
+  const map = {};
+  const t = '\n' + text;
+  airports.forEach(entry=>{
+    const block = extractIberiaAirportBlock(t, entry.code);
+    if(block==null) return;
+    const entries = splitIberiaNotamEntries(block).filter(e=>e.length>3);
+    map[entry.code] = entries.map(raw=>({raw, important: NOTAM_KEY_PATTERNS.some(re=>re.test(raw))}));
+  });
+  return map;
+}
+
 function buildNotamMapFromBulletin(bulletinText, airports){
   const map = {};
   airports.forEach(entry=>{
@@ -5798,6 +5832,30 @@ async function handleIberiaOfpUpload(fileList){
     }
   }
 
+  let notamFoundCount = 0, notamWantedCount = 0;
+  if(notamEntry){
+    try{
+      const buf = await notamEntry.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf, verbosity: 0}).promise;
+      let notamText = '';
+      for(let p=1; p<=pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        notamText += '\n' + await layoutPageText(page);
+      }
+      const airports = getAirportRoleList();
+      notamWantedCount = airports.length;
+      notamDataMap = buildIberiaNotamMap(notamText, airports);
+      if(airports.length){
+        selectedNotamAirport = airports[0].code;
+        renderNotamView();
+        notamFoundCount = airports.filter(a=>notamDataMap[a.code]).length;
+      }
+    }catch(e){
+      console.error(e);
+      setOfpStatus(`Error leyendo el NOTAM: ${e.message}`, true);
+    }
+  }
+
   document.getElementById('ofpDebugText').value = [
     ofpEntry ? 'OFP: '+ofpEntry.file.name : 'OFP: no identificado',
     notamEntry ? 'NOTAM: '+notamEntry.file.name : 'NOTAM: no identificado',
@@ -5809,7 +5867,8 @@ async function handleIberiaOfpUpload(fileList){
   const identifiedCount = iberiaFiles.length - unrecognized.length;
   const ofpFieldsFound = ofpData ? Object.keys(ofpData).filter(k=>ofpData[k]).length : 0;
   const metMsg = wxEntry ? `MET ✓ (${metFoundCount}/${metWantedCount} aeropuertos).` : 'MET: no identificado.';
-  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${metMsg} NOTAM: todavía sin extracción de datos.`);
+  const notamMsg = notamEntry ? `NOTAM ✓ (${notamFoundCount}/${notamWantedCount} aeropuertos).` : 'NOTAM: no identificado.';
+  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${metMsg} ${notamMsg}`);
 }
 
 function selectAirline(airline){
