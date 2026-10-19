@@ -1268,24 +1268,35 @@ function readEtopsPoints(){
 }
 
 function onSetupChange(){
-  state.dep = document.getElementById('dep').value.trim().toUpperCase();
-  state.arr = document.getElementById('arr').value.trim().toUpperCase();
-  state.std = document.getElementById('std').value;
-  state.eta = document.getElementById('eta').value;
-  state.taxi = document.getElementById('taxi').value;
-  state.eet = document.getElementById('eet').value;
-  state.mach = document.getElementById('mach').value;
-  state.routeText = document.getElementById('routeText').value;
-  state.alternates = readAlternates();
-  state.etopsOn = document.getElementById('etopsToggle').checked;
-  state.etopsPoints = state.etopsOn ? readEtopsPoints() : [];
-
-  const ibDepEl = document.getElementById('ib_dep');
-  if(ibDepEl){
-    ibFlightData.dep = ibDepEl.value.trim().toUpperCase();
-    ibFlightData.arr = document.getElementById('ib_arr').value.trim().toUpperCase();
-    ibFlightData.std = document.getElementById('ib_std').value;
-    ibFlightData.sta = document.getElementById('ib_sta').value;
+  if(currentAirline === 'iberia'){
+    // Iberia's dep/arr/std/sta live in the ib_ fields, not the Air Europa ones (#dep/#arr/#std/#eta
+    // are always empty for Iberia) — reading those into `state` here used to silently wipe out
+    // whatever the OFP parser had just set, as soon as ANY field changed.
+    const dep = document.getElementById('ib_dep').value.trim().toUpperCase();
+    const arr = document.getElementById('ib_arr').value.trim().toUpperCase();
+    const std = document.getElementById('ib_std').value;
+    const sta = document.getElementById('ib_sta').value;
+    ibFlightData.dep = dep; ibFlightData.arr = arr; ibFlightData.std = std; ibFlightData.sta = sta;
+    state.dep = dep; state.arr = arr; state.std = std; state.eta = sta;
+    state.alternates = readAlternates();
+    // keep each airport's explicit ±1h window in sync with any manual edit to STD/STA too
+    state.ofpWindows = state.ofpWindows || {};
+    const stdMin = hhmmToMin(std.replace('.', ':'));
+    const staMin = hhmmToMin(sta.replace('.', ':'));
+    if(dep && stdMin!=null) state.ofpWindows[dep] = [(stdMin-60+1440)%1440, (stdMin+60)%1440];
+    if(arr && staMin!=null) state.ofpWindows[arr] = [(staMin-60+1440)%1440, (staMin+60)%1440];
+  } else {
+    state.dep = document.getElementById('dep').value.trim().toUpperCase();
+    state.arr = document.getElementById('arr').value.trim().toUpperCase();
+    state.std = document.getElementById('std').value;
+    state.eta = document.getElementById('eta').value;
+    state.taxi = document.getElementById('taxi').value;
+    state.eet = document.getElementById('eet').value;
+    state.mach = document.getElementById('mach').value;
+    state.routeText = document.getElementById('routeText').value;
+    state.alternates = readAlternates();
+    state.etopsOn = document.getElementById('etopsToggle').checked;
+    state.etopsPoints = state.etopsOn ? readEtopsPoints() : [];
   }
 
   updatePfd();
@@ -2304,6 +2315,33 @@ function withDisplayLineBreaks(text){
   return text
     .replace(/ (?=(?:BECMG|FM\d{6}|RMK|PROB\d{2})\b)/g, '\n')
     .replace(/(?<!PROB\d{2}) (?=TEMPO\b)/g, '\n');
+}
+
+// Iberia's MET PDF lists one block per airport ("EGLL -LHR - LONDON HEATHROW" header, then SA.../=
+// for the METAR and FT.../= for the TAF) — same SA/FT shorthand as Air Europa's IWFR, just with "Z"
+// stuck directly onto the 6-digit date-time group and a different block-header line, so this reuses
+// the same decodeMetar/decodeTaf engine via buildWxMapFromIwfr's output shape.
+function buildIberiaWxMap(metText, airports){
+  const map = {};
+  const introRe = /^([A-Z]{4})\s*-[A-Z]{3}\s*-\s*.+$/gm;
+  const matches = [...metText.matchAll(introRe)];
+  const wanted = new Set(airports.map(a=>a.code));
+
+  matches.forEach((mt, i)=>{
+    const icao = mt[1];
+    if(!wanted.has(icao)) return;
+    const blockEnd = i+1<matches.length ? matches[i+1].index : metText.length;
+    let block = metText.slice(mt.index, blockEnd);
+    block = block.replace(/No válido para el vuelo[\s\S]*?_{10,}\s*/g, ' '); // page-break watermark
+
+    const entry = {};
+    const sa = block.match(/\bSA\s+(\d{6})Z?\s+([\s\S]*?)=/);
+    if(sa) entry.metar = withDisplayLineBreaks(`METAR ${icao} ${sa[1]}Z ${sa[2].replace(/\s+/g,' ').trim()}=`);
+    const ft = block.match(/\bFT\s+(\d{6})Z?\s+(\d{4}\/\d{4})\s+([\s\S]*?)=/);
+    if(ft) entry.taf = withDisplayLineBreaks(`TAF ${icao} ${ft[1]}Z ${ft[2]} ${ft[3].replace(/\s+/g,' ').trim()}=`);
+    if(entry.metar || entry.taf) map[icao] = entry;
+  });
+  return map;
 }
 
 function buildWxMapFromIwfr(iwfrText, airports){
@@ -5567,6 +5605,25 @@ function applyIberiaOfpData(data){
   renderIberiaDepArr(data);
   ibFlightData = data;
   updatePfd();
+
+  // Mirror into the shared `state` object so the existing METAR/TAF, NOTAM and Briefing pipelines —
+  // which all read from `state`, not from the Iberia-only fields — work the same way for Iberia.
+  state.dep = data.dep || '';
+  state.arr = data.arr || '';
+  state.std = data.std || '';
+  state.eta = data.sta || ''; // Iberia's OFP has no separate ETA; STA is the closest available value
+  state.eet = data.eet || '';
+  state.ofpWindows = state.ofpWindows || {};
+  const stdMin = hhmmToMin((data.std||'').replace('.', ':'));
+  const staMin = hhmmToMin((data.sta||'').replace('.', ':'));
+  // Iberia's windows are symmetric ±1h (unlike Air Europa's dep window, which starts at STD+taxi)
+  if(data.dep && stdMin!=null) state.ofpWindows[data.dep] = [(stdMin-60+1440)%1440, (stdMin+60)%1440];
+  if(data.arr && staMin!=null) state.ofpWindows[data.arr] = [(staMin-60+1440)%1440, (staMin+60)%1440];
+  if(data.alt && staMin!=null){
+    // Placeholder: STA ± 1h, same as ARR. Should really be (STA + transit time to the alternate from
+    // the OFP's "ALTNx NAV-LOG" page, TTIME ATO column) ± 1h — pending that page being provided.
+    state.ofpWindows[data.alt] = [(staMin-60+1440)%1440, (staMin+60)%1440];
+  }
 }
 
 // Fuel/weight block of the same Iberia OFP page — WEIGHT PLAN (TRLD/DOW/ZFW/TOF/TOW/TPF/LGW/PAX/FRG)
@@ -5716,6 +5773,31 @@ async function handleIberiaOfpUpload(fileList){
     }
   }
 
+  let metFoundCount = 0, metWantedCount = 0;
+  if(wxEntry){
+    try{
+      const buf = await wxEntry.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf, verbosity: 0}).promise;
+      let metText = '';
+      for(let p=1; p<=pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        metText += '\n' + await layoutPageText(page);
+      }
+      const airports = getAirportRoleList();
+      metWantedCount = airports.length;
+      wxDataMap = buildIberiaWxMap(metText, airports);
+      wxAirportList = airports;
+      if(airports.length){
+        selectedWxAirport = airports[0].code;
+        renderWxView();
+        metFoundCount = airports.filter(a=>wxDataMap[a.code]).length;
+      }
+    }catch(e){
+      console.error(e);
+      setOfpStatus(`Error leyendo el MET: ${e.message}`, true);
+    }
+  }
+
   document.getElementById('ofpDebugText').value = [
     ofpEntry ? 'OFP: '+ofpEntry.file.name : 'OFP: no identificado',
     notamEntry ? 'NOTAM: '+notamEntry.file.name : 'NOTAM: no identificado',
@@ -5726,7 +5808,8 @@ async function handleIberiaOfpUpload(fileList){
 
   const identifiedCount = iberiaFiles.length - unrecognized.length;
   const ofpFieldsFound = ofpData ? Object.keys(ofpData).filter(k=>ofpData[k]).length : 0;
-  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. NOTAM/MET: todavía sin extracción de datos.`);
+  const metMsg = wxEntry ? `MET ✓ (${metFoundCount}/${metWantedCount} aeropuertos).` : 'MET: no identificado.';
+  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${metMsg} NOTAM: todavía sin extracción de datos.`);
 }
 
 function selectAirline(airline){
