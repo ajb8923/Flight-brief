@@ -6,8 +6,8 @@
 <title>FlightBrief</title>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
@@ -1278,6 +1278,7 @@ function onSetupChange(){
     const sta = document.getElementById('ib_sta').value;
     ibFlightData.dep = dep; ibFlightData.arr = arr; ibFlightData.std = std; ibFlightData.sta = sta;
     state.dep = dep; state.arr = arr; state.std = std; state.eta = sta;
+    state.routeText = document.getElementById('routeText').value;
     state.alternates = readAlternates();
     // keep each airport's explicit ±1h window in sync with any manual edit to STD/STA too
     state.ofpWindows = state.ofpWindows || {};
@@ -5640,13 +5641,16 @@ function applyIberiaOfpData(data){
   ibFlightData = data;
   updatePfd();
 
-  // Mirror into the shared `state` object so the existing METAR/TAF, NOTAM and Briefing pipelines —
-  // which all read from `state`, not from the Iberia-only fields — work the same way for Iberia.
+  // Mirror into the shared `state` object so the existing METAR/TAF, NOTAM, route-map and Briefing
+  // pipelines — which all read from `state`, not from the Iberia-only fields — work the same way for
+  // Iberia. (routeText was the one case where the textarea looked filled in but state.routeText,
+  // which the satellite map actually reads, stayed empty — same class of bug as state.dep/arr before.)
   state.dep = data.dep || '';
   state.arr = data.arr || '';
   state.std = data.std || '';
   state.eta = data.sta || ''; // Iberia's OFP has no separate ETA; STA is the closest available value
   state.eet = data.eet || '';
+  state.routeText = data.routeText || '';
   state.ofpWindows = state.ofpWindows || {};
   const stdMin = hhmmToMin((data.std||'').replace('.', ':'));
   const staMin = hhmmToMin((data.sta||'').replace('.', ':'));
@@ -5777,7 +5781,7 @@ async function handleIberiaOfpUpload(fileList){
       for(let p=1; p<=pdf.numPages; p++){
         const page = await pdf.getPage(p);
         const dataUrl = await renderPageToDataUrl(page, 1.5);
-        mapsChartList.push({page:p, dataUrl, name:`${mapRoles[entry.role]} — ${entry.file.name}`, sourceLabel:mapRoles[entry.role], rotation:0});
+        mapsChartList.push({page:p, dataUrl, name:`${mapRoles[entry.role]} — ${entry.file.name}`, sourceLabel:mapRoles[entry.role], rotation:90}); // confirmed: 90° right from unrotated
       }
     }catch(e){
       console.error(e);
