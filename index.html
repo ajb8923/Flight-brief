@@ -45,6 +45,33 @@
 .airline-choice-sub{font-size:12px;color:var(--muted);}
 
 
+.hamburger-btn{
+  width:32px;height:32px;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--text);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+}
+.hamburger-btn svg{width:17px;height:17px;}
+.hamburger-btn:hover{border-color:var(--amber);}
+
+.section-drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:998;}
+.section-drawer{
+  position:fixed;top:0;left:0;bottom:0;width:260px;max-width:80vw;background:var(--surface);
+  border-right:1px solid var(--line);z-index:999;transform:translateX(-100%);transition:transform .2s ease;
+  display:flex;flex-direction:column;padding:16px;
+}
+.section-drawer.open{transform:translateX(0);}
+.section-drawer-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding:0 4px;}
+.section-drawer-head .name{font-size:15px;font-weight:600;color:var(--text);}
+.section-drawer-head .name b{color:var(--amber);font-weight:700;}
+.section-drawer-item{
+  display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;border:none;
+  background:transparent;color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;text-align:left;
+  font-family:'Inter',sans-serif;margin-bottom:4px;
+}
+.section-drawer-item svg{width:18px;height:18px;flex-shrink:0;}
+.section-drawer-item:hover{background:var(--surface-2);}
+.section-drawer-item.active{background:rgba(242,169,0,.12);color:var(--amber);}
+
 .airline-switch-btn{
   display:flex;align-items:center;gap:5px;margin-left:8px;flex-shrink:0;
   background:var(--surface-2);border:1px solid var(--line);border-radius:20px;
@@ -495,11 +522,50 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
     </div>
   </div>
 </div>
+<div id="sectionLanding" class="airline-landing" style="display:none">
+  <div class="airline-landing-inner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="airline-landing-logo"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
+    <h1>Flight<b>Brief</b></h1>
+    <p class="airline-landing-sub">¿Qué quieres preparar?</p>
+    <div class="airline-landing-choices">
+      <button class="airline-choice" onclick="selectSection('preflight')">
+        <span class="airline-choice-name">Pre-flight</span>
+        <span class="airline-choice-sub">Setup, Fuel, meteo, NOTAM, mapas, FTL, briefing...</span>
+      </button>
+      <button class="airline-choice" onclick="selectSection('flight')">
+        <span class="airline-choice-name">Flight</span>
+        <span class="airline-choice-sub">Próximamente</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="sectionDrawerOverlay" class="section-drawer-overlay" onclick="closeSectionDrawer()" style="display:none"></div>
+<div id="sectionDrawer" class="section-drawer">
+  <div class="section-drawer-head">
+    <div class="name">Flight<b>Brief</b></div>
+    <button class="icon-btn" onclick="closeSectionDrawer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <button class="section-drawer-item" id="drawerPreflight" onclick="goToSection('preflight')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
+    Pre-flight
+  </button>
+  <button class="section-drawer-item" id="drawerFlight" onclick="goToSection('flight')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
+    Flight
+  </button>
+</div>
+
 <div id="app" style="display:none">
 
   <div class="pfd">
     <div class="pfd-strip">
       <div class="pfd-brand">
+        <button class="hamburger-btn" onclick="toggleSectionDrawer()" title="Menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
         <div class="name">Flight<b>Brief</b></div>
         <button class="airline-switch-btn" id="airlineSwitchBtn" onclick="changeAirline()" title="Cambiar aerolínea">
@@ -1200,6 +1266,28 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
   </section>
 
   <footer>FlightBrief · V1 esqueleto · Setup funcional</footer>
+</div>
+
+<div id="flightApp" style="display:none">
+  <div class="pfd">
+    <div class="pfd-strip">
+      <div class="pfd-brand">
+        <button class="hamburger-btn" onclick="toggleSectionDrawer()" title="Menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
+        <div class="name">Flight<b>Brief</b></div>
+        <button class="airline-switch-btn" onclick="changeAirline()" title="Cambiar aerolínea">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span>Cambiar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div style="padding:60px 24px;text-align:center;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="width:40px;height:40px;color:var(--muted);margin-bottom:14px;"><path d="M2 16l7-2 5.5-6.5c.6-.7 1.7-.7 2.1.2.4.8 0 1.8-.8 2.1L10 12.5 8.5 17l2 .5-1 1.5-3-1-1 1.5-1-.5.5-1.7-2-1z"/></svg>
+    <p class="sub" style="font-size:14px;">Flight — todavía no tiene pestañas. Se irán añadiendo aquí.</p>
+  </div>
 </div>
 
 <script>
@@ -5950,15 +6038,57 @@ function selectAirline(airline){
   localStorage.setItem(AIRLINE_KEY, airline);
   applyAirline(airline);
   document.getElementById('airlineLanding').style.display = 'none';
-  document.getElementById('app').style.display = '';
-  initAppOnce();
-  loadAirlineData();
+  document.getElementById('sectionLanding').style.display = 'flex';
 }
 
 function changeAirline(){
   localStorage.removeItem(AIRLINE_KEY);
+  closeSectionDrawer();
+  currentSection = null;
   document.getElementById('app').style.display = 'none';
+  document.getElementById('flightApp').style.display = 'none';
+  document.getElementById('sectionLanding').style.display = 'none';
   document.getElementById('airlineLanding').style.display = 'flex';
+}
+
+// ================= PRE-FLIGHT / FLIGHT NAVIGATION =================
+// Same two sections for both airlines — Pre-flight is everything already built (Setup, Fuel,
+// A/C Status, METAR-TAF/MET, NOTAM, Mapas, FTL, QRH, Briefing); Flight is a fresh, empty shell
+// that tabs will be added to later. The hamburger menu (top-left, once inside either section)
+// just jumps between these two — it doesn't replace the existing tab bar inside each one.
+let currentSection = null; // 'preflight' | 'flight'
+
+function selectSection(section){
+  document.getElementById('sectionLanding').style.display = 'none';
+  goToSection(section);
+}
+
+function goToSection(section){
+  currentSection = section;
+  closeSectionDrawer();
+  if(section === 'preflight'){
+    document.getElementById('flightApp').style.display = 'none';
+    document.getElementById('app').style.display = '';
+    initAppOnce();
+    loadAirlineData();
+  } else {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('flightApp').style.display = '';
+  }
+  document.getElementById('drawerPreflight').classList.toggle('active', section==='preflight');
+  document.getElementById('drawerFlight').classList.toggle('active', section==='flight');
+}
+
+function toggleSectionDrawer(){
+  document.getElementById('sectionDrawer').classList.contains('open') ? closeSectionDrawer() : openSectionDrawer();
+}
+function openSectionDrawer(){
+  document.getElementById('sectionDrawer').classList.add('open');
+  document.getElementById('sectionDrawerOverlay').style.display = 'block';
+}
+function closeSectionDrawer(){
+  document.getElementById('sectionDrawer').classList.remove('open');
+  document.getElementById('sectionDrawerOverlay').style.display = 'none';
 }
 
 // Things that only ever need to happen once per page load, regardless of which airline is active —
@@ -5975,14 +6105,13 @@ function initAppOnce(){
   applyMapCardPrefs();
 }
 
-// skip the landing screen if an airline was already chosen on this device
+// skip the airline landing screen if an airline was already chosen on this device — still asks
+// Pre-flight/Flight every time, since that choice isn't remembered between opens
 const savedAirline = localStorage.getItem(AIRLINE_KEY);
 if(savedAirline){
   applyAirline(savedAirline);
   document.getElementById('airlineLanding').style.display = 'none';
-  document.getElementById('app').style.display = '';
-  initAppOnce();
-  loadAirlineData();
+  document.getElementById('sectionLanding').style.display = 'flex';
 }
 </script>
 </body>
