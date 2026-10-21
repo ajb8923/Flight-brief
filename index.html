@@ -152,6 +152,17 @@ body{
 .flight-panel.active{display:block;}
 @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
+.coord-entry{display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:12px;color:var(--muted);}
+.coord-hemi-btn{
+  width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);
+  color:var(--amber);font-weight:700;font-size:12px;cursor:pointer;flex-shrink:0;
+}
+.coord-num-input{
+  width:42px;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;
+  color:var(--text);font-size:12.5px;padding:5px 4px;text-align:center;font-family:'JetBrains Mono',monospace;
+}
+.coord-num-input:focus{border-color:var(--amber);outline:none;}
+
 .lognav-input{
   width:56px;background:var(--surface);border:1px solid var(--line);border-radius:6px;
   color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 3px;text-align:center;
@@ -1320,8 +1331,28 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <div class="grid2" style="margin-top:4px">
           <div class="fuel-row"><label>ATC CLEARANCE</label><div class="fuel-row-inputs single"><input id="log_atc" oninput="saveLogState()"></div></div>
           <div class="fuel-row"><label>CTOT</label><div class="fuel-row-inputs single"><input id="log_ctot" placeholder="--:--" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>GATE</label><div class="fuel-row-inputs single"><input id="log_gate" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>FMS POS</label><div class="fuel-row-inputs single"><input id="log_fmspos" oninput="saveLogState()"></div></div>
+          <div class="fuel-row"><label>GATE</label><div class="fuel-row-inputs single">
+            <div class="coord-entry">
+              <button type="button" class="coord-hemi-btn" id="gate_lat_hemi" onclick="this.textContent=this.textContent==='N'?'S':'N';composeCoord('gate')">N</button>
+              <input class="coord-num-input" id="gate_lat_deg" placeholder="40" inputmode="numeric" oninput="composeCoord('gate')">°
+              <input class="coord-num-input" id="gate_lat_min" placeholder="25.5" inputmode="decimal" oninput="composeCoord('gate')">'
+              <button type="button" class="coord-hemi-btn" id="gate_lon_hemi" onclick="this.textContent=this.textContent==='E'?'W':'E';composeCoord('gate')">W</button>
+              <input class="coord-num-input" id="gate_lon_deg" placeholder="003" inputmode="numeric" oninput="composeCoord('gate')">°
+              <input class="coord-num-input" id="gate_lon_min" placeholder="33.5" inputmode="decimal" oninput="composeCoord('gate')">'
+            </div>
+            <input id="log_gate" readonly placeholder="se compone sola" style="margin-top:6px;color:var(--amber)">
+          </div></div>
+          <div class="fuel-row"><label>FMS POS</label><div class="fuel-row-inputs single">
+            <div class="coord-entry">
+              <button type="button" class="coord-hemi-btn" id="fmspos_lat_hemi" onclick="this.textContent=this.textContent==='N'?'S':'N';composeCoord('fmspos')">N</button>
+              <input class="coord-num-input" id="fmspos_lat_deg" placeholder="40" inputmode="numeric" oninput="composeCoord('fmspos')">°
+              <input class="coord-num-input" id="fmspos_lat_min" placeholder="25.5" inputmode="decimal" oninput="composeCoord('fmspos')">'
+              <button type="button" class="coord-hemi-btn" id="fmspos_lon_hemi" onclick="this.textContent=this.textContent==='E'?'W':'E';composeCoord('fmspos')">W</button>
+              <input class="coord-num-input" id="fmspos_lon_deg" placeholder="003" inputmode="numeric" oninput="composeCoord('fmspos')">°
+              <input class="coord-num-input" id="fmspos_lon_min" placeholder="33.5" inputmode="decimal" oninput="composeCoord('fmspos')">'
+            </div>
+            <input id="log_fmspos" readonly placeholder="se compone sola" style="margin-top:6px;color:var(--amber)">
+          </div></div>
           <div class="fuel-row"><label>SLOP</label><div class="fuel-row-inputs single"><input id="log_slop" oninput="saveLogState()"></div></div>
         </div>
       </div>
@@ -1329,14 +1360,14 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <div class="card">
         <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Tiempos</h3>
         <div class="grid2">
-          <div class="fuel-row"><label>ON BLK</label><div class="fuel-row-inputs single"><input id="log_onblk" placeholder="--:--" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>LAND</label><div class="fuel-row-inputs single"><input id="log_land" placeholder="--:--" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>OFF BLK</label><div class="fuel-row-inputs single"><input id="log_offblk" placeholder="--:--" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>AIRB</label><div class="fuel-row-inputs single"><input id="log_airb" placeholder="--:--" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>BLK TIME</label><div class="fuel-row-inputs single"><input id="log_blktime" placeholder="--:--" oninput="saveLogState()"></div></div>
+          <div class="fuel-row"><label>ON BLK</label><div class="fuel-row-inputs single"><input id="log_onblk" placeholder="--:--" oninput="saveLogState();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>LAND</label><div class="fuel-row-inputs single"><input id="log_land" placeholder="--:--" oninput="saveLogState();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>OFF BLK</label><div class="fuel-row-inputs single"><input id="log_offblk" placeholder="--:--" oninput="saveLogState();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>AIRB</label><div class="fuel-row-inputs single"><input id="log_airb" placeholder="--:--" oninput="saveLogState();recalcEto();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>BLK TIME</label><div class="fuel-row-inputs single"><input id="log_blktime" placeholder="--:--" readonly></div></div>
           <div class="fuel-row"><label>TRIP TIME</label><div class="fuel-row-inputs single"><input id="log_triptime" readonly></div></div>
-          <div class="fuel-row"><label>FLT TIME</label><div class="fuel-row-inputs single"><input id="log_flttime" placeholder="--:--" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>ETA</label><div class="fuel-row-inputs single"><input id="log_eta" placeholder="--:--" oninput="saveLogState()"></div></div>
+          <div class="fuel-row"><label>FLT TIME</label><div class="fuel-row-inputs single"><input id="log_flttime" placeholder="--:--" readonly></div></div>
+          <div class="fuel-row"><label>ETA</label><div class="fuel-row-inputs single"><input id="log_eta" placeholder="--:--" readonly></div></div>
         </div>
       </div>
 
@@ -1346,13 +1377,18 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <div id="logNavTableWrap" style="overflow-x:auto;margin-top:10px">
           <table class="etopsdoc-table" id="logNavTable" style="min-width:720px">
             <thead><tr>
-              <th>AWY</th><th>IDENT</th><th>TRM</th><th>DI</th><th>MACH</th><th>TM</th>
-              <th>TOGO</th><th>F.RQD</th><th>F.EST</th><th>ATO</th><th>F.ACT</th>
+              <th>AWY</th><th>MRA</th><th>IDENT</th><th>FL</th><th>OPT</th><th>TRM</th><th>DI</th><th>MACH</th><th>TM</th>
+              <th>ETO</th><th>RTO</th><th>ATO</th>
+              <th>TOGO</th><th>F.RQD</th><th>F.AVL</th><th>F.EST</th><th>F.ACT</th>
             </tr></thead>
             <tbody id="logNavTableBody"></tbody>
           </table>
         </div>
         <p class="wx-empty" id="logNavEmpty">Sube el OFP en Pre-flight · Setup para ver aquí la navigation log.</p>
+        <details style="margin-top:10px">
+          <summary class="link-btn" style="cursor:pointer">Ver texto leído del Master Document (debug)</summary>
+          <textarea readonly id="masterDocDebugText" style="min-height:140px;margin-top:8px;font-size:10.5px" placeholder="Aparecerá aquí después de subir el OFP."></textarea>
+        </details>
       </div>
     </div>
   </section>
@@ -1523,7 +1559,10 @@ function applyFlightTabVisibility(){
 }
 
 const LOG_FIELD_IDS = ['log_capt','log_fo','log_sn','log_atc','log_ctot','log_gate','log_fmspos','log_slop',
-  'log_onblk','log_land','log_offblk','log_airb','log_blktime','log_flttime','log_eta'];
+  'log_onblk','log_land','log_offblk','log_airb','log_eta',
+  'gate_lat_deg','gate_lat_min','gate_lon_deg','gate_lon_min',
+  'fmspos_lat_deg','fmspos_lat_min','fmspos_lon_deg','fmspos_lon_min'];
+const COORD_HEMI_IDS = ['gate_lat_hemi','gate_lon_hemi','fmspos_lat_hemi','fmspos_lon_hemi'];
 
 let masterDocWaypoints = [];
 
@@ -1532,10 +1571,14 @@ function saveLogState(){
   try{
     const fields = {};
     LOG_FIELD_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) fields[id]=el.value; });
+    const hemis = {};
+    COORD_HEMI_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) hemis[id]=el.textContent; });
     const wpInputs = [...document.querySelectorAll('#logNavTableBody tr')].map(tr=>({
-      ato: tr.querySelector('.lognav-ato').value, fact: tr.querySelector('.lognav-fact').value
+      fl: tr.querySelector('.lognav-fl').value, opt: tr.querySelector('.lognav-opt').value,
+      rto: tr.querySelector('.lognav-rto').value, ato: tr.querySelector('.lognav-ato').value,
+      favl: tr.querySelector('.lognav-favl').value, fact: tr.querySelector('.lognav-fact').value
     }));
-    localStorage.setItem('flightbrief_log_aea', JSON.stringify({fields, wpInputs}));
+    localStorage.setItem('flightbrief_log_aea', JSON.stringify({fields, hemis, wpInputs}));
   }catch(e){ console.warn('No se pudo guardar el LOG:', e); }
 }
 
@@ -1545,16 +1588,80 @@ function loadLogState(){
     if(!raw) return;
     const data = JSON.parse(raw);
     if(data.fields) Object.keys(data.fields).forEach(id=>setVal(id, data.fields[id]));
+    if(data.hemis) Object.keys(data.hemis).forEach(id=>{ const el=document.getElementById(id); if(el && data.hemis[id]) el.textContent = data.hemis[id]; });
     if(data.wpInputs){
       const rows = document.querySelectorAll('#logNavTableBody tr');
       data.wpInputs.forEach((wp,i)=>{
         if(!rows[i]) return;
-        const atoEl = rows[i].querySelector('.lognav-ato'), factEl = rows[i].querySelector('.lognav-fact');
+        const flEl = rows[i].querySelector('.lognav-fl'), optEl = rows[i].querySelector('.lognav-opt');
+        const rtoEl = rows[i].querySelector('.lognav-rto'), atoEl = rows[i].querySelector('.lognav-ato');
+        const favlEl = rows[i].querySelector('.lognav-favl'), factEl = rows[i].querySelector('.lognav-fact');
+        if(flEl && wp.fl) flEl.value = wp.fl;
+        if(optEl && wp.opt) optEl.value = wp.opt;
+        if(rtoEl && wp.rto) rtoEl.value = wp.rto;
         if(atoEl && wp.ato) atoEl.value = wp.ato;
+        if(favlEl && wp.favl) favlEl.value = wp.favl;
         if(factEl && wp.fact) factEl.value = wp.fact;
       });
     }
   }catch(e){ console.warn('No se pudo leer el LOG guardado:', e); }
+  recalcLogTimes();
+}
+
+// ETO per point = AIRB + the running total of each point's own TM (in minutes), so the last point's
+// ETO should land on ETA (AIRB + TRIP TIME). Recalculated whenever AIRB changes.
+// GATE / FMS POS: the user only ever types plain numbers into 4 small boxes (lat deg, lat min,
+// lon deg, lon min) and taps the N/S and E/W buttons — the ° and ' symbols are static labels next
+// to the inputs, never typed, and this composes the final "N40°25.5' W003°33.5'" string.
+function composeCoord(field){
+  const latHemi = document.getElementById(field+'_lat_hemi').textContent;
+  const latDeg = document.getElementById(field+'_lat_deg').value.trim();
+  const latMin = document.getElementById(field+'_lat_min').value.trim();
+  const lonHemi = document.getElementById(field+'_lon_hemi').textContent;
+  const lonDeg = document.getElementById(field+'_lon_deg').value.trim();
+  const lonMin = document.getElementById(field+'_lon_min').value.trim();
+  const parts = [];
+  if(latDeg || latMin) parts.push(`${latHemi}${latDeg||'--'}°${latMin||'--'}'`);
+  if(lonDeg || lonMin) parts.push(`${lonHemi}${lonDeg||'--'}°${lonMin||'--'}'`);
+  setVal('log_'+field, parts.join(' '));
+  saveLogState();
+}
+
+// BLK TIME = ON BLK − OFF BLK (gate to gate), FLT TIME = LAND − AIRB (wheels up to wheels down).
+// Handles crossing midnight (if the end time is numerically earlier than the start, assume +24h).
+function hhmmDiff(startStr, endStr){
+  const s = hhmmToMin((startStr||'').trim()), e = hhmmToMin((endStr||'').trim());
+  if(s==null || e==null) return null;
+  let diff = e - s;
+  if(diff < 0) diff += 1440;
+  return diff;
+}
+function recalcLogTimes(){
+  const blkDiff = hhmmDiff(document.getElementById('log_offblk').value, document.getElementById('log_onblk').value);
+  setVal('log_blktime', blkDiff==null ? '' : minToHHMM(blkDiff));
+  const fltDiff = hhmmDiff(document.getElementById('log_airb').value, document.getElementById('log_land').value);
+  setVal('log_flttime', fltDiff==null ? '' : minToHHMM(fltDiff));
+
+  // ETA = AIRB + TRIP TIME (both HH:MM — TRIP TIME here is a duration, not a clock time, but adds the same way)
+  const airbMin = hhmmToMin((document.getElementById('log_airb').value||'').trim());
+  const tripMin = hhmmToMin((document.getElementById('log_triptime').value||'').trim());
+  setVal('log_eta', (airbMin==null || tripMin==null) ? '' : minToHHMM(airbMin + tripMin));
+}
+
+function recalcEto(){
+  const airbEl = document.getElementById('log_airb');
+  const airbMin = airbEl ? hhmmToMin(airbEl.value.trim()) : null;
+  const rows = document.querySelectorAll('#logNavTableBody tr');
+  let cum = airbMin;
+  rows.forEach((tr,i)=>{
+    const cell = tr.querySelector('.lognav-eto');
+    if(!cell) return;
+    const w = masterDocWaypoints[i];
+    const tm = w && w.tm ? parseInt(w.tm,10) : 0;
+    if(cum==null || isNaN(cum)){ cell.textContent = '--:--'; return; }
+    cum += tm;
+    cell.textContent = minToHHMM(cum);
+  });
 }
 
 function renderLogNavTable(){
@@ -1568,12 +1675,19 @@ function renderLogNavTable(){
   }
   if(empty) empty.style.display = 'none';
   body.innerHTML = masterDocWaypoints.map(w=>`<tr>
-    <td>${w.awy||'—'}</td><td style="color:var(--amber);font-weight:600">${w.ident}</td>
+    <td>${w.awy||'—'}</td><td>${w.mra||'—'}</td><td style="color:var(--amber);font-weight:600">${w.ident}</td>
+    <td><input class="lognav-input lognav-fl" placeholder="—" oninput="saveLogState()"></td>
+    <td><input class="lognav-input lognav-opt" placeholder="—" oninput="saveLogState()"></td>
     <td>${w.trm||'—'}</td><td>${w.di||'—'}</td><td>${w.mach||'—'}</td><td>${w.tm||'—'}</td>
-    <td>${w.togo}</td><td>${w.fuelRqd}</td><td>${w.fuelEst}</td>
+    <td class="lognav-eto">--:--</td>
+    <td><input class="lognav-input lognav-rto" placeholder="--:--" oninput="saveLogState()"></td>
     <td><input class="lognav-input lognav-ato" placeholder="--:--" oninput="saveLogState()"></td>
+    <td>${w.togo||'—'}</td><td>${w.fuelRqd||'—'}</td>
+    <td><input class="lognav-input lognav-favl" placeholder="—" oninput="saveLogState()"></td>
+    <td>${w.fuelEst||'—'}</td>
     <td><input class="lognav-input lognav-fact" placeholder="—" oninput="saveLogState()"></td>
   </tr>`).join('');
+  recalcEto();
 }
 
 function applyMasterDocData(parsed, ofpRef){
@@ -2317,6 +2431,25 @@ async function layoutPageText(page){
   }).join('\n');
 }
 
+// For the Master Document's navigation log specifically: layoutPageText's position-sort scrambles
+// this particular table into column-major order in real browsers (confirmed against real user
+// reports — the PDF's own content stream is already in correct row-by-row order, but re-sorting by
+// Y breaks that for this document). This trusts pdf.js's natural item order instead, only inserting
+// a line break when Y jumps to a new row, never re-sorting.
+async function layoutPageTextStreamOrder(page){
+  const tc = await page.getTextContent();
+  const items = tc.items.map(it=>({str:it.str, x:it.transform[4], y:it.transform[5]})).filter(it=>it.str.trim().length);
+  let out = '', lastY = null, lastEnd = null;
+  items.forEach(it=>{
+    if(lastY!==null && Math.abs(it.y-lastY)>2.5){ out += '\n'; lastEnd = null; }
+    else if(lastEnd!==null){ out += (it.x-lastEnd>20) ? '   ' : ' '; }
+    out += it.str;
+    lastEnd = it.x + it.str.length*3.2;
+    lastY = it.y;
+  });
+  return out;
+}
+
 function hhmm(str){ return str; } // pass-through, already HH:MM
 
 function mergeWrappedTypeLines(text){
@@ -2861,14 +2994,19 @@ function renderMapsView(){
 
 // The Master Document is a multi-page in-flight log sheet — header with blank fields to fill during
 // the flight (CAPT/FO/SN, ATC CLEARANCE, CTOT, times, GATE/FMS POS/SLOP) plus a full waypoint-by-
-// waypoint navigation log with the planned values pre-filled and ETO/ATO + fuel AVL/ACT left blank
-// for the crew to record as they fly. Multi-page, same pattern as the NOTAM bulletin.
+// waypoint navigation log with the planned values (AWY/MRA/IDENT/TRM/DI/MACH/TM/NAM TOGO/FUEL
+// RQD/FUEL EST) pre-filled, and FL/OPT/ETO/RTO/ATO/FUEL AVL/FUEL ACT left blank for the crew to fill
+// in as they fly. Uses layoutPageTextStreamOrder (not layoutPageText) — this table's rows only come
+// out correctly when pdf.js's natural item order is trusted rather than re-sorted by position.
 async function extractMasterDocFromPdf(pdf){
   let startPage=null, endPage=null;
   for(let p=1; p<=pdf.numPages; p++){
     const page = await pdf.getPage(p);
     const t = await quickPageText(page);
-    if(startPage===null && /MASTER\s+DOCUMENT/i.test(t)) startPage=p;
+    // The cover page's document checklist also has a line that just says "Master Document" (listing
+    // it as an included document) — require "OFP REFERENCE" alongside it too, since that only
+    // appears on the real section's own header, to avoid matching that checklist line instead.
+    if(startPage===null && /MASTER\s+DOCUMENT/i.test(t) && /OFP\s+REFERENCE/i.test(t)) startPage=p;
     if(startPage!==null && p>startPage && /FLIGHT\s+PLAN\s+BASED\s+ON/i.test(t)){ endPage=p-1; break; }
     if(startPage!==null && (p-startPage)>15) break; // safety cap
   }
@@ -2877,7 +3015,7 @@ async function extractMasterDocFromPdf(pdf){
   let combined = '';
   for(let p=startPage; p<=endPage; p++){
     const page = await pdf.getPage(p);
-    combined += '\n' + await layoutPageText(page);
+    combined += '\n' + await layoutPageTextStreamOrder(page);
   }
   return combined;
 }
@@ -2887,12 +3025,19 @@ function parseMasterDocText(text){
   const m = text.match(/TRIP\s+TIME\s+(\d{1,2}:\d{2})/i);
   if(m) out.tripTime = m[1];
 
-  const cleaned = text.replace(/Full flight briefing/gi,'').replace(/File:\s*\S+.*?Page:\s*\d+/gi,'');
-  const rowRe = /^\s*(DCT|UM\d+|UL\d+|M\d+|[A-Z]\d+)?\s+(\d{3})\s+(-?[A-Z0-9_]{3,8})\s+\.\.\s+(\d{3})(?:\s+(\d{1,3}))?(?:\s+(\d{3}))?(?:\s+(\d{1,3}))?(?:\s+\.{2,4}[\s.]*\.{2,4}[\s.]*\.{2,4})?\s+(\d+)\s+([\d.]+)\/\.\.\.\s+([\d.]+)\/\.\.\./gm;
+  // pdf.js reconstructs the sideways "Full flight briefing" watermark as separate reversed words
+  // (lluF / thgilf / gnifeirb) landing on whatever Y-band they happen to share with real text —
+  // sometimes merging straight into a data row and breaking it. Strip both spellings everywhere.
+  const cleaned = text
+    .replace(/\b(Full|lluF)\b/gi,'').replace(/\b(flight|thgilf)\b/gi,'').replace(/\b(briefing|gnifeirb)\b/gi,'')
+    .replace(/File:\s*\S+.*?Page:\s*\d+/gi,'');
+  // AWY(opt) MRA(opt — missing on the final arrival row) IDENT .. [TRM DI MACH TM](opt as a group —
+  // missing on the arrival row) [ETO/RTO/ATO placeholder](opt) TOGO FUEL_RQD/... FUEL_EST/...
+  const rowRe = /^\s*(?:(DCT|[A-Z][A-Z0-9]{1,7})\s+)?(?:(\d{3})(?!\d)\s+)?([A-Z0-9_-]{3,10})\s+\.\.\s+(?:(\d{3})(?!\d)(?:\s+(\d{1,3})(?!\d))?(?:\s+(\d{3})(?!\d))?(?:\s+(\d{1,3})(?!\d))?)?\s*(?:\.{2,4}[\s.]*\.{2,4}[\s.]*\.{2,4})?\s*(\d+)(?!\d)\s+([\d.]+)\/\.\.\.\s+([\d.]+)\/\.\.\./gm;
   let rm;
   while((rm = rowRe.exec(cleaned))){
     out.waypoints.push({
-      awy: rm[1]||'', ident: rm[3], trm: rm[4], di: rm[5]||'', mach: rm[6]||'', tm: rm[7]||'',
+      awy: rm[1]||'', mra: rm[2]||'', ident: rm[3], trm: rm[4]||'', di: rm[5]||'', mach: rm[6]||'', tm: rm[7]||'',
       togo: rm[8], fuelRqd: rm[9], fuelEst: rm[10]
     });
   }
@@ -3253,12 +3398,15 @@ async function handleOfpUpload(file){
     setOfpStatus(`Setup listo. Buscando Master Document (LOG) en el mismo PDF…`);
     const masterDocText = await extractMasterDocFromPdf(pdf);
     let masterDocMsg = '';
+    const masterDocDebugEl = document.getElementById('masterDocDebugText');
     if(masterDocText){
       const parsedMasterDoc = parseMasterDocText(masterDocText);
       applyMasterDocData(parsedMasterDoc, plan.ofpRef);
       masterDocMsg = `LOG ✓ (${parsedMasterDoc.waypoints.length} puntos).`;
+      if(masterDocDebugEl) masterDocDebugEl.value = masterDocText;
     } else {
       masterDocMsg = 'LOG: no se ha encontrado el Master Document en este PDF.';
+      if(masterDocDebugEl) masterDocDebugEl.value = '(no se encontró la sección "MASTER DOCUMENT" en ninguna página)';
     }
 
     setOfpStatus(`Setup listo. Buscando NOTAM en el mismo PDF…`);
