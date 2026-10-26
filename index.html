@@ -173,6 +173,7 @@ body{
 }
 .lognav-input:focus{border-color:var(--amber);outline:none;}
 #logNavTable td{white-space:nowrap;}
+select.lognav-select{width:64px;padding:4px 18px 4px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber);background-color:var(--surface);border-radius:6px;background-position:right 4px center;background-size:11px;}
 
 .card{
   background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
@@ -557,6 +558,17 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 .vp-ct-time{font-size:10.5px;font-weight:600;margin-bottom:4px;}
 .vp-ct-bar{height:7px;border-radius:4px;background:linear-gradient(90deg,rgb(90,122,166),rgb(63,160,160) 18%,rgb(76,176,80) 32%,rgb(200,200,58) 59%,rgb(224,96,58) 79%,rgb(208,72,208));}
 .vp-ct-labels{display:flex;justify-content:space-between;font-size:8.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;gap:4px;}
+.ib-delta b{font-family:'JetBrains Mono',monospace;font-size:12px;}
+.ib-ahead{color:var(--ok);} .ib-late{color:var(--danger);} .ib-ok{color:var(--text);}
+.ib-sum{font-size:10px;color:var(--muted);margin-bottom:4px;}
+.ib-sum b{color:var(--amber);font-size:11.5px;}
+.ib-alt-table td.ib-alt-wx{white-space:normal;min-width:160px;max-width:300px;cursor:pointer;color:var(--text);font-family:'Inter',sans-serif;font-size:11px;line-height:1.4;}
+.ib-alt-table td.ib-alt-wx.warn{color:var(--amber);font-weight:600;}
+.iblog-rmkbox{width:140px;min-height:58px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:4px 5px;display:flex;flex-direction:column;}
+.iblog-rmkbox:focus-within{border-color:var(--amber);}
+.iblog-rmkbox .ib-sum{display:block;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--amber);line-height:1.1;margin:2px 0 0 8px;white-space:nowrap;}
+.iblog-rmkbox .ib-sum:empty{display:none;}
+.iblog-rmkbox .iblog-rmk{width:100%;min-height:24px;border:none;background:transparent;padding:0;flex:1;}
 /* ---------- Avisos de app sin conexión / actualización ---------- */
 .app-toast{
   position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
@@ -1508,6 +1520,7 @@ function addAlt(icao){
     <button class="icon-btn" onclick="removeRow('${id}','altRows')">${trashIcon()}</button>`;
   document.getElementById('altRows').appendChild(div);
   onSetupChange();
+  if(typeof renderIberiaAltSummary==='function' && currentAirline==='iberia') renderIberiaAltSummary();
 }
 
 function addEtops(apt, start, end){
@@ -1534,6 +1547,7 @@ function removeRow(id, containerId){
     r.querySelector('.row-index').textContent = i+1;
   });
   onSetupChange();
+  if(containerId==='altRows') renderIberiaAltSummary();
 }
 
 function onEtopsToggle(){
@@ -1750,7 +1764,7 @@ function renderLogNavTable(){
   body.innerHTML = masterDocWaypoints.map(w=>`<tr>
     <td>${w.awy||'—'}</td><td>${w.mra||'—'}</td><td style="color:var(--amber);font-weight:600">${w.ident}</td>
     <td><input class="lognav-input lognav-fl" placeholder="—" oninput="saveLogState()"></td>
-    <td><input class="lognav-input lognav-opt" placeholder="—" oninput="saveLogState()"></td>
+    <td><select class="lognav-input lognav-select lognav-opt" onchange="saveLogState()"><option value="">—</option><option>OPT</option><option>REC</option><option>MAX</option><option>ATC</option><option>TUR</option><option>OFP</option></select></td>
     <td>${w.trm||'—'}</td><td>${w.di||'—'}</td><td>${w.mach||'—'}</td><td>${w.tm||'—'}</td>
     <td class="lognav-eto">--:--</td>
     <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
@@ -4712,6 +4726,7 @@ function resetSharedAppData(){
 
   document.getElementById('altRows').innerHTML=''; altSeq=0;
   document.getElementById('etopsRows').innerHTML=''; etopsSeq=0;
+  const altDetail = document.getElementById('etopsDocAltDetail'); if(altDetail) altDetail.innerHTML = '';
   document.getElementById('etopsToggle').checked = false;
   document.getElementById('etopsBlock').style.display = 'none';
   document.querySelectorAll('input[id^="add_"]').forEach(el=>{ el.value=''; });
@@ -4740,6 +4755,7 @@ function loadAppState(){
     ibFlightData = payload.ibFlightData || {};
     if(payload.ibFields) Object.keys(payload.ibFields).forEach(id=>setVal(id, payload.ibFields[id]));
     renderIberiaDepArr(ibFlightData);
+    setTimeout(renderIberiaAltSummary, 0);
   } else {
     setVal('dep', state.dep); setVal('arr', state.arr); setVal('std', state.std); setVal('eta', state.eta);
     setVal('taxi', state.taxi); setVal('eet', state.eet); setVal('mach', state.mach);
@@ -6766,7 +6782,33 @@ function ibLogInput(el){
   ibLog.inputs[i] = ibLog.inputs[i] || {};
   ibLog.inputs[i][f] = el.value;
   saveIberiaLog();
+  if(f==='ato' || f==='eto') ibUpdateDelta(i);
+  if(f==='abrn' || f==='armg') ibUpdateSum(i);
 }
+
+// +/-T: ATO antes que ETO → A (adelantado) + minutos; después → R (retrasado) + minutos; igual → 0
+function ibDeltaHtml(i){
+  const inp = ibLog.inputs[i] || {};
+  const eto = hhmmToMin((inp.eto||'').trim()), ato = hhmmToMin((inp.ato||'').trim());
+  if(eto==null || ato==null) return '&nbsp;';
+  let d = ato - eto;
+  if(d > 720) d -= 1440; if(d < -720) d += 1440;
+  if(d===0) return '<b class="ib-ok">0</b>';
+  const a = Math.abs(d);
+  const txt = a>59 ? Math.floor(a/60)+':'+String(a%60).padStart(2,'0') : String(a);
+  return d<0 ? `<b class="ib-ahead">A${txt}</b>` : `<b class="ib-late">R${txt}</b>`;
+}
+function ibUpdateDelta(i){ const el = document.getElementById('ibd-'+i); if(el) el.innerHTML = ibDeltaHtml(i); }
+
+// RMK/FREQ: suma ABRN + ARMG (lo quemado + lo que queda), se actualiza al escribir
+function ibSumHtml(i){
+  const inp = ibLog.inputs[i] || {};
+  const a = (inp.abrn||'').trim(), b = (inp.armg||'').trim();
+  if(!/^\d+$/.test(a) || !/^\d+$/.test(b)) return '';
+  const sum = String(parseInt(a,10) + parseInt(b,10)).padStart(Math.max(a.length, b.length), '0');
+  return sum;
+}
+function ibUpdateSum(i){ const el = document.getElementById('ibs-'+i); if(el) el.innerHTML = ibSumHtml(i); }
 function ibLogHeaderInput(field, el){
   ibLog[field] = el.value;
   if(field==='tot') recalcIberiaEto(); else saveIberiaLog();
@@ -6792,6 +6834,7 @@ function recalcIberiaEto(){
     ibLog.inputs[i].eto = eto;
     const el = document.querySelector(`#ibLogBody input[data-i="${i}"][data-f="eto"]`);
     if(el) el.value = eto;
+    ibUpdateDelta(i);
   });
   saveIberiaLog();
 }
@@ -6835,10 +6878,10 @@ function renderIberiaLog(){
       ${show(r.gs, r.nm)}
       ${fill(r.time, null, i, 'eto', true)}
       ${fill(r.ttime, null, i, 'ato', true)}
-      ${show(r.rnm, r.pmt)}
+      <td>${v(r.rnm)}<span class="v ib-delta" id="ibd-${i}">${ibDeltaHtml(i)}</span></td>
       ${fill(r.tbrn, null, i, 'abrn')}
       ${fill(r.trmg, null, i, 'armg')}
-      <td><textarea class="iblog-rmk" data-i="${i}" data-f="rmk" placeholder="RMK / FREQ" oninput="ibLogInput(this)">${ibEsc(rmk)}</textarea></td>
+      <td><div class="iblog-rmkbox"><textarea class="iblog-rmk" data-i="${i}" data-f="rmk" placeholder="RMK / FREQ" oninput="ibLogInput(this)">${ibEsc(rmk)}</textarea><span class="ib-sum" id="ibs-${i}">${ibSumHtml(i)}</span></div></td>
     </tr>`;
   }).join('');
 }
@@ -6875,6 +6918,7 @@ function applyAirline(airline){
   qrhBtn.style.display = multi ? 'none' : '';
   if(multi && qrhBtn.classList.contains('active')) switchTab('setup');
   applyFlightTabVisibility();
+  renderIberiaAltSummary();
 }
 
 function handleOfpFileInput(fileList){
@@ -7093,6 +7137,74 @@ function renderIberiaDepArr(data){
   el.innerHTML = `<div class="rows">${row('DEP', data.dep)}${row('ARR', data.arr)}</div>`;
 }
 
+// "ALTERNATE SUMMARY" (página 2 del OFP de Iberia): ALTN DIST TIME MIN FUEL ALT
+function parseIberiaAltSummary(text){
+  const i = text.indexOf('ALTERNATE SUMMARY');
+  if(i<0) return [];
+  const end = text.indexOf('OFF BLOCK', i);
+  const block = text.slice(i, end>i ? end : i+600);
+  const out = [];
+  const re = /\b([A-Z]{4})\s+(\d{1,4})\s+(\d{1,2})\s*[:.]\s*(\d{2})\s+(\d{3,6})\b/g;
+  let m;
+  while((m = re.exec(block))) out.push({icao:m[1], dist:m[2], time:m[3].padStart(2,'0')+':'+m[4], minFuel:m[5]});
+  return out;
+}
+
+// Los alternativos de la tabla pasan a ser los alternativos del vuelo (así salen también en MET y NOTAM),
+// con su ventana de meteo = STA + tiempo al alternativo ± 1 h
+function applyIberiaAltSummary(list){
+  ibFlightData.altSummary = list;
+  document.getElementById('altRows').innerHTML=''; altSeq=0;
+  list.forEach(a=>addAlt(a.icao));
+  const staMin = hhmmToMin(((ibFlightData.sta||'')+'').replace('.', ':'));
+  state.ofpWindows = state.ofpWindows || {};
+  list.forEach(a=>{
+    const t = hhmmToMin(a.time);
+    if(staMin!=null && t!=null){ const c = staMin + t; state.ofpWindows[a.icao] = [(c-60+1440)%1440, (c+60)%1440]; }
+  });
+  saveAppState();
+  renderIberiaAltSummary();
+}
+
+function renderIberiaAltSummary(){
+  const detail = document.getElementById('etopsDocAltDetail');
+  const rowsEl = document.getElementById('altRows');
+  const addBtn = rowsEl && rowsEl.parentNode.querySelector('.add-btn');
+  if(!detail || !rowsEl) return;
+  const list = (currentAirline==='iberia' && ibFlightData && ibFlightData.altSummary) || [];
+  // Iberia con tabla del OFP: tabla arriba, debajo solo los alternativos añadidos a mano y el botón.
+  // Air Europa (o sin tabla): orden original y todas las filas visibles.
+  if(list.length){
+    rowsEl.parentNode.insertBefore(detail, rowsEl);
+    detail.style.marginTop = '0';
+    detail.style.marginBottom = '8px';
+  } else if(addBtn){
+    addBtn.after(detail);
+    detail.style.marginTop = '12px';
+    detail.style.marginBottom = '';
+  }
+  const fromOfp = new Set(list.map(a=>a.icao));
+  let n = 0;
+  rowsEl.querySelectorAll('.row').forEach(r=>{
+    const v = (r.querySelector('input').value||'').trim().toUpperCase();
+    const hide = fromOfp.has(v);
+    r.style.display = hide ? 'none' : '';
+    if(!hide) r.querySelector('.row-index').textContent = ++n;
+  });
+  if(currentAirline!=='iberia') return;
+  if(!list.length){ detail.innerHTML = ''; return; }
+  let html = `<div class="etopsdoc-table-wrap"><table class="etopsdoc-table"><thead><tr>
+      <th>ALTN</th><th>DIST</th><th>TIME</th><th>MIN FUEL ALT</th>
+    </tr></thead><tbody>`;
+  list.forEach(a=>{
+    html += `<tr><td>${a.icao}</td><td>${a.dist}</td><td>${a.time}</td><td>${a.minFuel}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  detail.innerHTML = html;
+}
+function openIbAltWx(code){ selectedWxAirport = code; switchTab('metar'); }
+function openIbAltNotam(code){ selectedNotamAirport = code; switchTab('notam'); }
+
 async function handleIberiaOfpUpload(fileList){
   const files = Array.from(fileList);
   if(!files.length) return;
@@ -7136,7 +7248,7 @@ async function handleIberiaOfpUpload(fileList){
   const notamEntry = iberiaFiles.find(e=>e.role==='notam');
   const wxEntry = iberiaFiles.find(e=>e.role==='metartaf');
 
-  let ofpData = null, ofpDebugText = '';
+  let ofpData = null, ofpDebugText = '', ofpAltDebug = '\n--- ALTERNATE SUMMARY: no encontrado en el OFP ---';
   let ibNavCount = 0;
   if(ofpEntry){
     try{
@@ -7147,6 +7259,21 @@ async function handleIberiaOfpUpload(fileList){
       ofpData = parseIberiaOfpText(ofpDebugText);
       applyIberiaOfpData(ofpData);
       applyIberiaFuelData(parseIberiaFuelText(ofpDebugText));
+      // la tabla suele estar en la página 2, pero se busca en las 3 primeras por si cambia el formato
+      for(let pg=1; pg<=Math.min(3, pdf.numPages); pg++){
+        const pgText = pg===1 ? ofpDebugText : await layoutPageText(await pdf.getPage(pg));
+        const altSum = parseIberiaAltSummary(pgText);
+        if(altSum.length){
+          applyIberiaAltSummary(altSum);
+          const i0 = pgText.indexOf('ALTERNATE SUMMARY');
+          ofpAltDebug = `\n--- ALTERNATE SUMMARY (página ${pg}): ${altSum.length} alternativo(s) ---\n` + pgText.slice(i0, i0+260);
+          break;
+        }
+        if(pgText.includes('ALTERNATE SUMMARY')){
+          const i0 = pgText.indexOf('ALTERNATE SUMMARY');
+          ofpAltDebug = `\n--- ALTERNATE SUMMARY encontrado en la página ${pg} pero no se pudo leer la tabla ---\n` + pgText.slice(i0, i0+260);
+        }
+      }
 
       setOfpStatus('Leyendo navigation log del OFP…');
       const navRows = await extractIberiaNavLog(pdf, ofpData.arr);
@@ -7212,15 +7339,19 @@ async function handleIberiaOfpUpload(fileList){
     notamEntry ? 'NOTAM: '+notamEntry.file.name : 'NOTAM: no identificado',
     wxEntry ? 'MET: '+wxEntry.file.name : 'MET: no identificado',
     unrecognized.length ? 'Sin identificar: '+unrecognized.map(e=>e.file.name).join(', ') : '',
+    ofpEntry ? ofpAltDebug : '',
     ofpDebugText ? '\n--- Texto leído del OFP (página 1) ---\n'+ofpDebugText : '',
   ].filter(Boolean).join('\n');
 
+  renderIberiaAltSummary();
+  saveAppState();
   const identifiedCount = iberiaFiles.length - unrecognized.length;
   const ofpFieldsFound = ofpData ? Object.keys(ofpData).filter(k=>ofpData[k]).length : 0;
   const metMsg = wxEntry ? `MET ✓ (${metFoundCount}/${metWantedCount} aeropuertos).` : 'MET: no identificado.';
   const notamMsg = notamEntry ? `NOTAM ✓ (${notamFoundCount}/${notamWantedCount} aeropuertos).` : 'NOTAM: no identificado.';
   const logMsg = ibNavCount ? `LOG ✓ (${ibNavCount} puntos).` : 'LOG: no se ha encontrado la navigation log.';
-  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${metMsg} ${notamMsg} ${logMsg}`);
+  const altMsg = (ibFlightData.altSummary||[]).length ? `Alternativos ✓ (${ibFlightData.altSummary.map(x=>x.icao).join(', ')}).` : 'Alternativos: no se ha leído la tabla ALTERNATE SUMMARY (mira el texto de debug).';
+  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${altMsg} ${metMsg} ${notamMsg} ${logMsg}`);
 }
 
 function selectAirline(airline){
