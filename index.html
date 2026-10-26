@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FlightBrief</title>
+<!-- FLIGHTBRIEF-APP -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FlightBrief">
+<meta name="theme-color" content="#060d1a">
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
@@ -518,6 +526,32 @@ select option{background:#0d1830;color:var(--text);}
 }
 
 footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
+
+/* ---------- Avisos de app sin conexión / actualización ---------- */
+.app-toast{
+  position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
+  z-index:2000;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 16px;
+  color:var(--text);font-size:13px;font-weight:600;display:flex;align-items:center;gap:9px;
+  box-shadow:0 10px 30px -10px rgba(0,0,0,.7);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:90vw;
+}
+.app-toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+.app-toast.ok{border-color:rgba(62,207,142,.45);}
+.app-toast.update{border-color:var(--amber);cursor:pointer;}
+.app-toast .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ok);}
+.app-toast.update .dot{background:var(--amber);}
+
+/* ---------- Iberia · Flight · LOG ---------- */
+.iblog-table{border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:10.5px;min-width:1050px;width:100%;}
+.iblog-table th{background:var(--surface-2);color:var(--muted);font-size:9px;font-family:'Inter',sans-serif;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:6px;border-bottom:1px solid var(--line);line-height:1.35;white-space:nowrap;}
+.iblog-table td{padding:6px;border-bottom:1px solid var(--line);border-right:1px solid rgba(28,47,77,.5);vertical-align:top;white-space:nowrap;color:var(--text);}
+.iblog-table th:first-child,.iblog-table td:first-child{position:sticky;left:0;z-index:1;background:var(--surface);}
+.iblog-table .v{display:block;line-height:1.4;}
+.iblog-table .v2{color:var(--muted);}
+.iblog-ident{color:var(--amber);font-weight:700;}
+.iblog-sep{border-top:1px solid rgba(242,169,0,.45);margin:5px 0 4px;}
+.iblog-in{width:54px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 3px;text-align:center;outline:none;}
+.iblog-in:focus,.iblog-rmk:focus{border-color:var(--amber);}
+.iblog-rmk{width:120px;min-height:58px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px;resize:vertical;outline:none;}
 </style>
 </head>
 <body>
@@ -551,7 +585,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       </button>
       <button class="airline-choice" onclick="selectSection('flight')">
         <span class="airline-choice-name">Flight</span>
-        <span class="airline-choice-sub">Próximamente</span>
+        <span class="airline-choice-sub">LOG de navegación en vuelo</span>
       </button>
     </div>
   </div>
@@ -1308,6 +1342,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
       LOG
     </button>
+    <button class="tab" data-ftab="iblog" id="ibLogTabBtn" onclick="switchFlightTab('iblog')" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+      LOG
+    </button>
   </div>
 
   <section class="flight-panel active" id="flightpanel-log">
@@ -1329,7 +1367,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         <p class="sub" id="logRouteSummary" style="margin-top:12px"></p>
         <div class="grid2" style="margin-top:4px">
           <div class="fuel-row"><label>ATC CLEARANCE</label><div class="fuel-row-inputs single"><input id="log_atc" oninput="saveLogState()"></div></div>
-          <div class="fuel-row"><label>CTOT</label><div class="fuel-row-inputs single"><input id="log_ctot" placeholder="--:--" oninput="saveLogState()"></div></div>
+          <div class="fuel-row"><label>CTOT</label><div class="fuel-row-inputs single"><input id="log_ctot" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></div></div>
           <div class="fuel-row"><label>GATE</label><div class="fuel-row-inputs single"><input id="log_gate" oninput="saveLogState()"></div></div>
           <div class="fuel-row"><label>FMS POS</label><div class="fuel-row-inputs single"><input id="log_fmspos" oninput="saveLogState()"></div></div>
           <div class="fuel-row"><label>SLOP</label><div class="fuel-row-inputs single"><input id="log_slop" oninput="saveLogState()"></div></div>
@@ -1339,10 +1377,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <div class="card">
         <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Tiempos</h3>
         <div class="grid2">
-          <div class="fuel-row"><label>ON BLK</label><div class="fuel-row-inputs single"><input id="log_onblk" placeholder="--:--" oninput="saveLogState();recalcLogTimes()"></div></div>
-          <div class="fuel-row"><label>LAND</label><div class="fuel-row-inputs single"><input id="log_land" placeholder="--:--" oninput="saveLogState();recalcLogTimes()"></div></div>
-          <div class="fuel-row"><label>OFF BLK</label><div class="fuel-row-inputs single"><input id="log_offblk" placeholder="--:--" oninput="saveLogState();recalcLogTimes()"></div></div>
-          <div class="fuel-row"><label>AIRB</label><div class="fuel-row-inputs single"><input id="log_airb" placeholder="--:--" oninput="saveLogState();recalcEto();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>ON BLK</label><div class="fuel-row-inputs single"><input id="log_onblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>LAND</label><div class="fuel-row-inputs single"><input id="log_land" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>OFF BLK</label><div class="fuel-row-inputs single"><input id="log_offblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>AIRB</label><div class="fuel-row-inputs single"><input id="log_airb" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcEto();recalcLogTimes()"></div></div>
           <div class="fuel-row"><label>BLK TIME</label><div class="fuel-row-inputs single"><input id="log_blktime" placeholder="--:--" readonly></div></div>
           <div class="fuel-row"><label>TRIP TIME</label><div class="fuel-row-inputs single"><input id="log_triptime" readonly></div></div>
           <div class="fuel-row"><label>FLT TIME</label><div class="fuel-row-inputs single"><input id="log_flttime" placeholder="--:--" readonly></div></div>
@@ -1371,7 +1409,27 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       </div>
     </div>
   </section>
+
+  <section class="flight-panel" id="flightpanel-iblog">
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.5-2V4L9 6m0 14l6-2m-6 2V6m6 12l5.5 2V6L15 4m0 14V4m0 2L9 4"/></svg>Navigation Log</h3>
+      <p class="sub">Se rellena sola al subir el OFP en Pre-flight · Setup. Arriba de la línea, lo planificado en el OFP; debajo, el hueco para rellenar en vuelo. Al poner el TAKE OFF TIME se calcula el ETO de cada punto. Tiempos en HH:MM (puedes teclear 0815).</p>
+      <div class="grid2" style="margin-top:10px">
+        <div class="fuel-row"><label>OFF BLOCK</label><div class="fuel-row-inputs single"><input id="iblog_offblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);ibLogHeaderInput('offblk',this)" onchange="this.value=normTimeStr(this.value);ibLogHeaderInput('offblk',this)"></div></div>
+        <div class="fuel-row"><label>TAKE OFF</label><div class="fuel-row-inputs single"><input id="iblog_tot" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);ibLogHeaderInput('tot',this)" onchange="this.value=normTimeStr(this.value);ibLogHeaderInput('tot',this)"></div></div>
+      </div>
+      <p class="sub" id="ibLogSummary" style="margin-top:6px"></p>
+      <div id="ibLogTableWrap" style="overflow-x:auto;margin-top:10px;display:none;border:1px solid var(--line);border-radius:9px;">
+        <table class="iblog-table"><thead><tr>
+          <th>WPT<br>FREQ</th><th>LAT<br>LONG</th><th>TRK<br>WS</th><th>FL<br>MORA</th><th>OAT<br>ISA</th><th>WIND<br>AWIND</th><th>G/S<br>NM</th><th>TIME<br>ETO</th><th>TTIME<br>ATO</th><th>R/NM<br>+/-T</th><th>TBRN<br>ABRN</th><th>TRMG<br>ARMG</th><th>RMK/<br>FREQ</th>
+        </tr></thead><tbody id="ibLogBody"></tbody></table>
+      </div>
+      <p class="wx-empty" id="ibLogEmpty">Sube los PDF del despacho en Pre-flight · Setup para ver aquí la navigation log.</p>
+    </div>
+  </section>
 </div>
+
+<div id="appToast" class="app-toast"><span class="dot"></span><span id="appToastText"></span></div>
 
 <script>
 let state = {
@@ -1514,7 +1572,7 @@ function confirmSetup(){
 }
 
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('#tabbar .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   if(name==='metar') ensureWxAirportsInit();
   if(name==='notam') ensureNotamAirportsInit();
@@ -1526,15 +1584,19 @@ function switchFlightTab(name){
   document.querySelectorAll('.flight-panel').forEach(p=>p.classList.toggle('active', p.id==='flightpanel-'+name));
 }
 
-// LOG tab is Air Europa only — Iberia shows the "nothing here yet" placeholder instead.
+// Flight: Air Europa → LOG (Master Document); Iberia → LOG (navigation log de su OFP)
 function applyFlightTabVisibility(){
-  const show = currentAirline !== 'iberia';
-  const btn = document.getElementById('logTabBtn');
-  if(btn) btn.style.display = show ? '' : 'none';
+  const ib = currentAirline === 'iberia';
+  const aeaBtn = document.getElementById('logTabBtn');
+  const ibBtn = document.getElementById('ibLogTabBtn');
+  if(aeaBtn) aeaBtn.style.display = ib ? 'none' : '';
+  if(ibBtn) ibBtn.style.display = ib ? '' : 'none';
   const content = document.getElementById('logContent');
   const empty = document.getElementById('flightEmptyNotice');
-  if(content) content.style.display = show ? '' : 'none';
-  if(empty) empty.style.display = show ? 'none' : '';
+  if(content) content.style.display = '';
+  if(empty) empty.style.display = 'none';
+  switchFlightTab(ib ? 'iblog' : 'log');
+  if(ib) loadIberiaLogState();
 }
 
 const LOG_FIELD_IDS = ['log_capt','log_fo','log_sn','log_atc','log_ctot','log_gate','log_fmspos','log_slop',
@@ -1637,8 +1699,8 @@ function renderLogNavTable(){
     <td><input class="lognav-input lognav-opt" placeholder="—" oninput="saveLogState()"></td>
     <td>${w.trm||'—'}</td><td>${w.di||'—'}</td><td>${w.mach||'—'}</td><td>${w.tm||'—'}</td>
     <td class="lognav-eto">--:--</td>
-    <td><input class="lognav-input lognav-rto" placeholder="--:--" oninput="saveLogState()"></td>
-    <td><input class="lognav-input lognav-ato" placeholder="--:--" oninput="saveLogState()"></td>
+    <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
+    <td><input class="lognav-input lognav-ato" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
     <td>${w.togo||'—'}</td><td>${w.fuelRqd||'—'}</td>
     <td><input class="lognav-input lognav-favl" placeholder="—" oninput="saveLogState()"></td>
     <td>${w.fuelEst||'—'}</td>
@@ -1674,7 +1736,7 @@ function ensureNotamAirportsInit(){
   renderNotamView();
 }
 
-document.querySelectorAll('.tab').forEach(t=>{
+document.querySelectorAll('#tabbar .tab').forEach(t=>{
   t.addEventListener('click', ()=>switchTab(t.dataset.tab));
 });
 
@@ -6032,6 +6094,210 @@ function applyMapCardPrefs(){
   });
 }
 
+// ================= IBERIA · FLIGHT · LOG (navigation log del OFP) =================
+// Iberia OFP navigation log: from "OFF BLOCK TIME / TAKE OFF TIME" down to the destination row.
+// pdf.js merges neighbouring cells into one item ("512812N N51"), so every item is split back into
+// words using the font's fixed character width (the OFP is monospaced), then each word is placed in
+// its column by X position (taken from the header labels) and in its row by Y position.
+async function extractIberiaNavLog(pdf, arrIcao){
+  const FALLBACK_COLS = {wpt:52,lat:102,trk:172,fl:201,oat:232,wind:264,gs:306,time:334,ttime:367,rnm:408,tbrn:443,trmg:478,rmk:517};
+  const HEADER_KEYS = {WPTTO:'wpt',LAT:'lat',TRK:'trk',FL:'fl',MORA:'fl',OAT:'oat',WIND:'wind',AWIND:'wind','G/S':'gs',TIME:'time',TTIME:'ttime','R/NM':'rnm',TBRN:'tbrn',TRMG:'trmg','RMK/':'rmk'};
+  const rows = [];
+  let started = false;
+
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const toks = [];
+    tc.items.forEach(it=>{
+      const tr = it.transform;
+      if(Math.abs(tr[1])>0.01 || Math.abs(tr[2])>0.01) return; // rotated watermark
+      const str = (it.str||'').replace(/\u00a0/g,' ');
+      if(!str.trim()) return;
+      const cw = it.width && str.length ? it.width/str.length : 6.3;
+      const re = /\S+/g; let m;
+      while((m = re.exec(str))) toks.push({t:m[0], x:tr[4]+m.index*cw, y:tr[5]});
+    });
+    const pageText = toks.map(t=>t.t).join(' ');
+    if(!started){
+      if(!/OFF\s+BLOCK\s+TIME/i.test(pageText)) continue;
+      started = true;
+    }
+    const header = toks.find(t=>t.t==='WPTTO' || t.t==='WPT');
+    if(!header) break;
+    const headerY = header.y;
+
+    const cols = Object.assign({}, FALLBACK_COLS);
+    const found = {};
+    toks.filter(t=>Math.abs(t.y-headerY)<14 && HEADER_KEYS[t.t]).forEach(t=>{
+      const k = HEADER_KEYS[t.t];
+      found[k] = found[k]==null ? t.x : Math.min(found[k], t.x);
+    });
+    if(Object.keys(found).length>=10) Object.assign(cols, found);
+    const colOrder = Object.keys(cols).sort((a,b)=>cols[a]-cols[b]);
+    const colOf = x=>{ let c = colOrder[0]; colOrder.forEach(k=>{ if(x >= cols[k]-4) c = k; }); return c; };
+
+    // anything below the end of the main log on this page (ETP block / alternate nav-log) is ignored
+    let stopY = -Infinity;
+    toks.forEach((t,i)=>{
+      if((t.t==='EQUAL' && toks[i+1] && toks[i+1].t==='TIME') || /NAV-LOG/.test(t.t)) stopY = Math.max(stopY, t.y);
+    });
+
+    // drop FIR-boundary lines and the page footer
+    const lineKey = y=>Math.round(y/2.5);
+    const badLines = new Set();
+    toks.forEach(t=>{ if(/^(FIR|OPERATIONAL|PRTD|válido|vuelo)$/i.test(t.t)) badLines.add(lineKey(t.y)); });
+
+    const data = toks.filter(t=>t.y < headerY-14 && t.y > stopY+3 && !badLines.has(lineKey(t.y)) && !badLines.has(lineKey(t.y)+1) && !badLines.has(lineKey(t.y)-1));
+    const idents = data.filter(t=>colOf(t.x)==='wpt' && data.some(o=>colOf(o.x)==='lat' && /^[NS]\d{2}$/.test(o.t) && Math.abs(o.y-t.y)<3))
+      .sort((a,b)=>b.y-a.y);
+
+    let done = false;
+    for(let i=0;i<idents.length;i++){
+      const id = idents[i];
+      const lower = i+1<idents.length ? idents[i+1].y+5 : -Infinity;
+      const cells = {};
+      data.filter(t=>t.y <= id.y+5 && t.y > lower).sort((a,b)=>a.x-b.x).forEach(t=>{
+        const c = colOf(t.x);
+        const dy = id.y - t.y;
+        const line = dy < 6 ? 'top' : 'bot';
+        const key = c+'_'+line;
+        cells[key] = cells[key] ? cells[key]+' '+t.t : t.t;
+      });
+      const row = {
+        ident: cells.wpt_top||'', freq: cells.wpt_bot||'',
+        lat: cells.lat_top||'', lon: cells.lat_bot||'',
+        trk: cells.trk_top||'', ws: cells.trk_bot||'',
+        fl: cells.fl_top||'', mora: cells.fl_bot||'',
+        oat: cells.oat_top||'', isa: cells.oat_bot||'',
+        wind: cells.wind_top||'', awind: cells.wind_bot||'',
+        gs: cells.gs_top||'', nm: cells.gs_bot||'',
+        time: cells.time_top||'', eto: cells.time_bot||'',
+        ttime: cells.ttime_top||'', ato: cells.ttime_bot||'',
+        rnm: cells.rnm_top||'', pmt: cells.rnm_bot||'',
+        tbrn: cells.tbrn_top||'', abrn: cells.tbrn_bot||'',
+        trmg: cells.trmg_top||'', armg: cells.trmg_bot||'',
+        rmk: [cells.rmk_top, cells.rmk_bot].filter(Boolean).join(' ')
+      };
+      rows.push(row);
+      if(arrIcao && row.ident===arrIcao && rows.length>1){ done = true; break; }
+    }
+    if(done || stopY>-Infinity) break;
+  }
+  return rows;
+}
+const IB_LOG_KEY = 'flightbrief_log_iberia';
+let ibLog = { ofpKey:'', offblk:'', tot:'', rows:[], inputs:{} };
+
+function ibEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// "0815" / "815" / "08.15" / "08/15" / "08:15" -> "08:15" (si aún está incompleto, lo deja tal cual)
+function normTimeStr(v){
+  const d = String(v||'').replace(/\D/g,'');
+  if(d.length<3) return v||'';
+  const p = d.padStart(4,'0').slice(-4);
+  if(+p.slice(0,2)>23 || +p.slice(2)>59) return v;
+  return p.slice(0,2)+':'+p.slice(2);
+}
+// pone los dos puntos solo mientras se teclea: 0 -> 08 -> 08:2 -> 08:27 (máx. 4 cifras)
+function autoColon(el){
+  const d = el.value.replace(/\D/g,'').slice(0,4);
+  el.value = d.length>2 ? d.slice(0,2)+':'+d.slice(2) : d;
+}
+// tiempos del OFP con punto: "00.16" / "1.53" -> minutos
+function ofpDotTimeToMin(s){
+  const m = String(s||'').match(/^(\d{1,2})\.(\d{2})$/);
+  return m ? (+m[1])*60 + (+m[2]) : null;
+}
+
+function saveIberiaLog(){
+  try{ localStorage.setItem(IB_LOG_KEY, JSON.stringify(ibLog)); }catch(e){ console.warn('No se pudo guardar el LOG Iberia:', e); }
+}
+function loadIberiaLogState(){
+  try{
+    const raw = localStorage.getItem(IB_LOG_KEY);
+    if(raw) ibLog = Object.assign({ofpKey:'', offblk:'', tot:'', rows:[], inputs:{}}, JSON.parse(raw));
+  }catch(e){ console.warn('No se pudo leer el LOG Iberia:', e); }
+  renderIberiaLog();
+}
+// mismo OFP subido otra vez -> conserva lo ya rellenado; OFP distinto -> log en blanco
+function applyIberiaNavLog(rows, ofpKey){
+  if(ibLog.ofpKey !== ofpKey) ibLog = { ofpKey, offblk:'', tot:'', rows, inputs:{} };
+  else ibLog.rows = rows;
+  saveIberiaLog();
+  renderIberiaLog();
+  if(ibLog.tot) recalcIberiaEto();
+}
+
+function ibLogInput(el){
+  const i = el.dataset.i, f = el.dataset.f;
+  ibLog.inputs[i] = ibLog.inputs[i] || {};
+  ibLog.inputs[i][f] = el.value;
+  saveIberiaLog();
+}
+function ibLogHeaderInput(field, el){
+  ibLog[field] = el.value;
+  if(field==='tot') recalcIberiaEto(); else saveIberiaLog();
+}
+
+// ETO de cada punto = TAKE OFF TIME + TTIME (tiempo acumulado del OFP) -> el último cae en la ETA
+function recalcIberiaEto(){
+  const tot = hhmmToMin(normTimeStr(ibLog.tot));
+  ibLog.rows.forEach((r,i)=>{
+    const tt = ofpDotTimeToMin(r.ttime);
+    const eto = tot==null ? '' : minToHHMM(tot + (tt||0));
+    ibLog.inputs[i] = ibLog.inputs[i] || {};
+    ibLog.inputs[i].eto = eto;
+    const el = document.querySelector(`#ibLogBody input[data-i="${i}"][data-f="eto"]`);
+    if(el) el.value = eto;
+  });
+  saveIberiaLog();
+}
+
+function renderIberiaLog(){
+  const body = document.getElementById('ibLogBody');
+  const wrap = document.getElementById('ibLogTableWrap');
+  const empty = document.getElementById('ibLogEmpty');
+  if(!body) return;
+  setVal('iblog_offblk', ibLog.offblk);
+  setVal('iblog_tot', ibLog.tot);
+  if(!ibLog.rows.length){
+    body.innerHTML = ''; wrap.style.display = 'none'; empty.style.display = '';
+    return;
+  }
+  wrap.style.display = ''; empty.style.display = 'none';
+  const last = ibLog.rows[ibLog.rows.length-1];
+  document.getElementById('ibLogSummary').textContent =
+    `${ibLog.rows[0].ident} → ${last.ident}  ·  ${ibLog.rows.length} puntos  ·  TTIME ${last.ttime||'--'}`;
+
+  const val = (i,f)=> ibEsc((ibLog.inputs[i]||{})[f]);
+  const inp = (i,f,isTime)=> isTime
+    ? `<input class="iblog-in" data-i="${i}" data-f="${f}" inputmode="numeric" maxlength="5" placeholder="--:--" value="${val(i,f)}" oninput="autoColon(this);ibLogInput(this)" onchange="this.value=normTimeStr(this.value);ibLogInput(this)">`
+    : `<input class="iblog-in" data-i="${i}" data-f="${f}" placeholder="—" value="${val(i,f)}" oninput="ibLogInput(this)">`;
+  const v = (s, cls)=> `<span class="v${cls?' '+cls:''}">${s?ibEsc(s):'&nbsp;'}</span>`;
+  const show = (top, bot)=> `<td>${v(top)}${v(bot,'v2')}</td>`;
+  const fill = (top, bot, i, f, isTime)=> `<td>${v(top)}${v(bot,'v2')}<div class="iblog-sep"></div>${inp(i,f,isTime)}</td>`;
+
+  body.innerHTML = ibLog.rows.map((r,i)=>{
+    const rmk = (ibLog.inputs[i] && ibLog.inputs[i].rmk!=null) ? ibLog.inputs[i].rmk : (r.rmk||'');
+    return `<tr>
+      <td>${v(r.ident,'iblog-ident')}${v(r.freq,'v2')}</td>
+      ${show(r.lat, r.lon)}
+      ${show(r.trk, r.ws)}
+      ${fill(r.fl, r.mora, i, 'fl')}
+      ${fill(r.oat, r.isa, i, 'oat')}
+      ${fill(r.wind, null, i, 'awind')}
+      ${show(r.gs, r.nm)}
+      ${fill(r.time, null, i, 'eto', true)}
+      ${fill(r.ttime, null, i, 'ato', true)}
+      ${show(r.rnm, r.pmt)}
+      ${fill(r.tbrn, null, i, 'abrn')}
+      ${fill(r.trmg, null, i, 'armg')}
+      <td><textarea class="iblog-rmk" data-i="${i}" data-f="rmk" placeholder="RMK / FREQ" oninput="ibLogInput(this)">${ibEsc(rmk)}</textarea></td>
+    </tr>`;
+  }).join('');
+}
+
 // ================= AIRLINE SELECTION =================
 const AIRLINE_KEY = 'flightbrief_airline';
 let currentAirline = null;
@@ -6074,7 +6340,7 @@ function handleOfpFileInput(fileList){
 // Iberia's dispatch is 6 separate PDFs rather than one combined file. Each file's own name says what
 // it is — "SIG" (x2) for the two significant-weather charts, "GRAPH" for the wind chart, and OFP/
 // NOTAM/MET for the other three — so this identifies and files each one automatically, no manual
-// tagging. The 3 chart PDFs go straight into Mapas; OFP/NOTAM/MET data extraction isn't built yet.
+// tagging. The 3 chart PDFs go straight into Mapas.
 function guessIberiaRole(filename, takenRoles){
   const n = filename.toUpperCase();
   if(n.includes('GRAPH') && !takenRoles.has('wind')) return 'wind';
@@ -6088,15 +6354,12 @@ function guessIberiaRole(filename, takenRoles){
   return null;
 }
 
-// Iberia OFP header parser — based on a marked-up screenshot, not yet verified against real
-// extracted PDF text (quirks between pdf.js and other extractors have bitten us before on this
-// project), so treat this as a first pass to correct once a real file is tested.
-// Field by field: callsign (IBE07KB), flight number (IB712), date (18OCT26), reg (ECNTP), CI,
-// dep/arr + DEP/ARR RWY + SID + STAR all parsed from the single route string
+// Iberia OFP header parser — field by field: callsign (IBE07KB), flight number (IB712), date (18OCT26),
+// reg (ECNTP), CI, dep/arr + DEP/ARR RWY + SID + STAR all parsed from the single route string
 // ("EGLLR27R.GOGSI2F...NONTU5C.LEMDR32L" — first token is DEP+R+RWY, second is SID, second-to-last
 // is STAR, last is ARR+R+RWY), STD/STA (paired with dep/arr's ICAO code), flight levels, EET/DST
 // (from the "MACH AREA CI FLIGHT" row), and the alternate ("ALT LEVD ...") — which goes to the
-// Alternativos list, not a Setup field, per instructions.
+// Alternativos list, not a Setup field.
 function parseIberiaOfpText(text){
   const t = text.replace(/\r/g,'');
   const out = {};
@@ -6180,9 +6443,7 @@ function applyIberiaOfpData(data){
   updatePfd();
 
   // Mirror into the shared `state` object so the existing METAR/TAF, NOTAM, route-map and Briefing
-  // pipelines — which all read from `state`, not from the Iberia-only fields — work the same way for
-  // Iberia. (routeText was the one case where the textarea looked filled in but state.routeText,
-  // which the satellite map actually reads, stayed empty — same class of bug as state.dep/arr before.)
+  // pipelines — which all read from `state`, not from the Iberia-only fields — work the same way for Iberia.
   state.dep = data.dep || '';
   state.arr = data.arr || '';
   state.std = data.std || '';
@@ -6197,14 +6458,13 @@ function applyIberiaOfpData(data){
   if(data.arr && staMin!=null) state.ofpWindows[data.arr] = [(staMin-60+1440)%1440, (staMin+60)%1440];
   if(data.alt && staMin!=null){
     // Placeholder: STA ± 1h, same as ARR. Should really be (STA + transit time to the alternate from
-    // the OFP's "ALTNx NAV-LOG" page, TTIME ATO column) ± 1h — pending that page being provided.
+    // the OFP's "ALTNx NAV-LOG" page, TTIME ATO column) ± 1h.
     state.ofpWindows[data.alt] = [(staMin-60+1440)%1440, (staMin+60)%1440];
   }
 }
 
 // Fuel/weight block of the same Iberia OFP page — WEIGHT PLAN (TRLD/DOW/ZFW/TOF/TOW/TPF/LGW/PAX/FRG)
-// and FUEL·TIME (each row is a kg value + its own HH.MM time, matching the OFP layout). Checked
-// against the real extracted text, including the space-around-the-dot quirk in this table.
+// and FUEL·TIME (each row is a kg value + its own HH.MM time, matching the OFP layout).
 function parseIberiaFuelText(text){
   const t = text;
   const out = {};
@@ -6271,9 +6531,7 @@ function applyIberiaFuelData(data){
   calcIberiaFuel();
 }
 
-// Iberia's OFP only gives us the plain DEP/ARR airport codes (no RWY/FROM/TO/APPROACH/WX MIN/FCST
-// detail like Documentación ETOPS gives for Air Europa), so this is a simpler display, not the same
-// rich table.
+// Iberia's OFP only gives us the plain DEP/ARR airport codes, so this is a simpler display than AEA's table.
 function renderIberiaDepArr(data){
   const el = document.getElementById('etopsDocDepArr');
   if(!el) return;
@@ -6334,6 +6592,7 @@ async function handleIberiaOfpUpload(fileList){
   const wxEntry = iberiaFiles.find(e=>e.role==='metartaf');
 
   let ofpData = null, ofpDebugText = '';
+  let ibNavCount = 0;
   if(ofpEntry){
     try{
       const buf = await ofpEntry.file.arrayBuffer();
@@ -6343,6 +6602,11 @@ async function handleIberiaOfpUpload(fileList){
       ofpData = parseIberiaOfpText(ofpDebugText);
       applyIberiaOfpData(ofpData);
       applyIberiaFuelData(parseIberiaFuelText(ofpDebugText));
+
+      setOfpStatus('Leyendo navigation log del OFP…');
+      const navRows = await extractIberiaNavLog(pdf, ofpData.arr);
+      ibNavCount = navRows.length;
+      applyIberiaNavLog(navRows, [ofpData.flightNum, ofpData.date, ofpData.std].join('|'));
     }catch(e){
       console.error(e);
       setOfpStatus(`Error leyendo el OFP: ${e.message}`, true);
@@ -6410,7 +6674,8 @@ async function handleIberiaOfpUpload(fileList){
   const ofpFieldsFound = ofpData ? Object.keys(ofpData).filter(k=>ofpData[k]).length : 0;
   const metMsg = wxEntry ? `MET ✓ (${metFoundCount}/${metWantedCount} aeropuertos).` : 'MET: no identificado.';
   const notamMsg = notamEntry ? `NOTAM ✓ (${notamFoundCount}/${notamWantedCount} aeropuertos).` : 'NOTAM: no identificado.';
-  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${metMsg} ${notamMsg}`);
+  const logMsg = ibNavCount ? `LOG ✓ (${ibNavCount} puntos).` : 'LOG: no se ha encontrado la navigation log.';
+  setOfpStatus(`${identifiedCount}/${iberiaFiles.length} documentos identificados. Mapas: ${mapsChartList.length} página(s) cargada(s), giran con el botón en el visor.${unrecognized.length?' Revisa el nombre de: '+unrecognized.map(e=>e.file.name).join(', ')+'.':''} OFP: ${ofpFieldsFound} campo(s) leídos${ofpEntry?'':' (no identificado)'}. ${metMsg} ${notamMsg} ${logMsg}`);
 }
 
 function selectAirline(airline){
@@ -6431,10 +6696,6 @@ function changeAirline(){
 }
 
 // ================= PRE-FLIGHT / FLIGHT NAVIGATION =================
-// Same two sections for both airlines — Pre-flight is everything already built (Setup, Fuel,
-// A/C Status, METAR-TAF/MET, NOTAM, Mapas, FTL, QRH, Briefing); Flight is a fresh, empty shell
-// that tabs will be added to later. The hamburger menu (top-left, once inside either section)
-// just jumps between these two — it doesn't replace the existing tab bar inside each one.
 let currentSection = null; // 'preflight' | 'flight'
 
 function selectSection(section){
@@ -6453,6 +6714,7 @@ function goToSection(section){
   } else {
     document.getElementById('app').style.display = 'none';
     document.getElementById('flightApp').style.display = '';
+    applyFlightTabVisibility();
   }
   document.getElementById('drawerPreflight').classList.toggle('active', section==='preflight');
   document.getElementById('drawerFlight').classList.toggle('active', section==='flight');
@@ -6470,9 +6732,7 @@ function closeSectionDrawer(){
   document.getElementById('sectionDrawerOverlay').style.display = 'none';
 }
 
-// Things that only ever need to happen once per page load, regardless of which airline is active —
-// loading each airline's own saved session happens separately, in loadAirlineData(), every time an
-// airline is (re)selected.
+// Things that only ever need to happen once per page load, regardless of which airline is active.
 let appInitialized = false;
 function initAppOnce(){
   if(appInitialized) return;
@@ -6491,6 +6751,38 @@ if(savedAirline){
   applyAirline(savedAirline);
   document.getElementById('airlineLanding').style.display = 'none';
   document.getElementById('sectionLanding').style.display = 'flex';
+}
+
+// ================= APP SIN CONEXIÓN (instalada en la pantalla de inicio) =================
+// sw.js guarda la app en el iPad la primera vez que se abre con internet. Desde entonces se abre
+// sin red; si hay un index.html nuevo en GitHub, lo descarga en segundo plano y avisa aquí.
+function showAppToast(text, kind, ms, onTap){
+  const el = document.getElementById('appToast');
+  if(!el) return;
+  document.getElementById('appToastText').textContent = text;
+  el.className = 'app-toast show ' + (kind||'');
+  el.onclick = onTap || null;
+  clearTimeout(showAppToast._t);
+  if(ms) showAppToast._t = setTimeout(()=>{ el.className = 'app-toast'; }, ms);
+}
+
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+  navigator.serviceWorker.addEventListener('message', ev=>{
+    if(ev.data && ev.data.type==='update-ready'){
+      showAppToast('Nueva versión disponible · toca para actualizar', 'update', 0, ()=>location.reload());
+    }
+  });
+  navigator.serviceWorker.register('sw.js').then(async ()=>{
+    await navigator.serviceWorker.ready;
+    try{
+      const ok = await caches.match('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js')
+              && await caches.match('./index.html');
+      if(ok && localStorage.getItem('fb_offline_ready')!=='1'){
+        localStorage.setItem('fb_offline_ready','1');
+        showAppToast('Lista para usar sin conexión', 'ok', 5000);
+      }
+    }catch(e){}
+  }).catch(e=>console.warn('No se pudo activar el modo sin conexión:', e));
 }
 </script>
 </body>
