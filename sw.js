@@ -2,13 +2,13 @@
 // No hace falta tocar este archivo al actualizar: basta con subir el index.html nuevo.
 // La app se abre siempre desde la copia guardada; con internet, comprueba en segundo plano si hay
 // un index.html nuevo en GitHub y, si lo hay, lo guarda y avisa ("Nueva versión disponible").
-const CACHE = 'flightbrief-v1';
+const CACHE = 'flightbrief-v2';
 const INDEX = './index.html';
 const MARKER = 'FLIGHTBRIEF-APP'; // solo se acepta como actualización un index.html que contenga esto
 const LOCAL = ['./index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
 const FONTS_CSS = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap';
-const CACHEABLE_HOSTS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const CACHEABLE_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
