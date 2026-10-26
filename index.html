@@ -1107,6 +1107,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           Generar perfil
         </button>
+        <div class="vp-zoom" id="vpRouteSel" style="display:none"><button data-v="main" class="active" onclick="setVProfRoute('main')">Ruta</button><button data-v="alt" onclick="setVProfRoute('alt')">Desvío</button></div>
         <div class="vp-zoom"><button data-z="1" class="active" onclick="setVProfZoom(1)">1×</button><button data-z="2" onclick="setVProfZoom(2)">2×</button><button data-z="4" onclick="setVProfZoom(4)">4×</button></div>
         <button class="btn btn-ghost btn-sm vp-radar-btn active" id="vpCtBtn" onclick="toggleVProfClouds()">Cima de nubes</button>
         <button class="btn btn-ghost btn-sm vp-radar-btn" id="vpRadarBtn" onclick="toggleVProfRadar()">Radar actual</button>
@@ -4804,7 +4805,7 @@ function loadAppState(){
 // the other airline's data can never show through, then recalls this airline's own save if any.
 function loadAirlineData(){
   resetSharedAppData();
-  vprof = null;
+  vprof = null; vprofMain = null; vprofAltRoute = null; vprofView = 'main';
   if(loadAppState()){
     setOfpStatus('Datos del último vuelo recuperados de este iPad.');
   } else {
@@ -5961,6 +5962,17 @@ function vpDistAtTime(wps, t){
 // Perfil del avión: subida hasta TOC (o 4 NM por 1000 ft), escalones en los waypoints de Flight levels
 // (8 NM por 1000 ft), bajada desde TOD (o 3 NM por 1000 ft).
 function vpMakeAltFn(p){
+  if(p.altAnchors && p.altAnchors.length>1){
+    const A = p.altAnchors;
+    p.steps = []; p.unmatched = [];
+    return d=>{
+      if(d<=A[0].d) return A[0].ft;
+      for(let i=0;i<A.length-1;i++){
+        if(d<=A[i+1].d){ const f = (A[i+1].d-A[i].d) ? (d-A[i].d)/(A[i+1].d-A[i].d) : 0; return A[i].ft + (A[i+1].ft-A[i].ft)*f; }
+      }
+      return A[A.length-1].ft;
+    };
+  }
   const {wps, total, fl} = p;
   const steps = [];
   let from = 0;
@@ -6074,14 +6086,60 @@ const VP_HZ_COLOR = {turb:'#3b82f6', icing:'#a855f7', cb:'#e5484d', tops:'#cbd5e
 
 function vpNearestName(d){
   let best=null, bd=Infinity;
-  vprof.wps.forEach(w=>{ if(/^(TOC|TOD)$/.test(w.ident)) return; const x=Math.abs(w.dist-d); if(x<bd){bd=x;best=w.ident;} });
+  vprof.wps.forEach(w=>{ if(/^(TOC|TOD)$|ETP/.test(w.ident)) return; const x=Math.abs(w.dist-d); if(x<bd){bd=x;best=w.ident;} });
   return best||'';
 }
 function vpTimeLabel(tMin){ return '+'+minToHHMM(tMin); }
 function vpUtcLabel(tMin){ if(!vprof || !vprof.depUnix) return ''; const dt=new Date((vprof.depUnix + tMin*60)*1000); return String(dt.getUTCHours()).padStart(2,'0')+':'+String(dt.getUTCMinutes()).padStart(2,'0')+'Z'; }
 
+function vpMakeCols(p, perNm){
+  const N = Math.max(12, Math.min(60, Math.round(p.total/(perNm||110))));
+  p.cols = [];
+  for(let k=0;k<N;k++){
+    const d = p.total*k/(N-1);
+    const pos = vpInterpWps(p.wps, d);
+    p.cols.push({d, lat:pos.lat, lon:pos.lon, t:pos.time, wx:null});
+  }
+}
+
+// Meteo del proxy a la hora de paso + capa de cima de nubes. Devuelve el texto para el estado.
+async function vpAttachWx(p, label){
+  const apiUrl = (document.getElementById('profileApiUrl').value||'').trim();
+  const tag = label ? label+': ' : '';
+  let msg = '';
+  const hasCoords = p.cols.every(c=>c.lat!=null && !isNaN(c.lat));
+  if(apiUrl && hasCoords){
+    setProfileStatus(`${tag}pidiendo la previsión de ${p.cols.length} puntos a la hora de paso…`);
+    try{
+      const resp = await fetch(apiUrl.replace(/\/$/,'') + '/', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({points: p.cols.map(c=>({lat:c.lat, lon:c.lon, t: p.depUnix + Math.round(c.t*60)}))})
+      });
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error);
+      if(!data.points || !data.points[0] || !data.points[0].lv) throw new Error('El proxy no devuelve el formato nuevo — ¿has pegado flightbrief-profile-worker.js nuevo?');
+      data.points.forEach((pt,i)=>{ if(p.cols[i]) p.cols[i].wx = pt; });
+      if(data.shifted) p.note = 'La fecha del vuelo está fuera del rango de previsión: se ha usado la previsión disponible más cercana.';
+      msg = ` ${tag}meteo ✓.`;
+    }catch(e){ msg = ` ${tag}meteo no disponible: ${e.message}.`; }
+  } else if(!apiUrl) msg = ` ${tag}sin URL del proxy: solo el perfil del avión.`;
+  else msg = ` ${tag}faltan coordenadas de algunos puntos: solo el perfil del avión.`;
+  if(hasCoords){
+    try{
+      const grid = vpBuildCtGrid(p);
+      if(grid){
+        p.ct = await vpFetchCloudTops(grid, p.depUnix, p.depUnix + Math.round(p.totalTime*60));
+        msg += ` Cima de nubes ✓ (${p.ct.times.length} h).`;
+      }
+    }catch(e){ msg += ` Cima de nubes no disponible: ${e.message}.`; }
+  }
+  return msg;
+}
+
+let vprofMain = null, vprofAltRoute = null, vprofView = 'main';
+
 async function generateVProf(){
-  if(currentAirline==='iberia'){ setProfileStatus('De momento el perfil nuevo está hecho para Air Europa. Iberia vendrá después.', true); return; }
+  if(currentAirline==='iberia') return generateVProfIberia();
   if(!state.dep || !state.arr){ setProfileStatus('Sube el OFP en Setup primero (falta Departure/Arrival).', true); return; }
   const flStr = ((document.getElementById('add_flightLevels')||{}).value||'').trim();
   const fl = vpParseFlightLevels(flStr);
@@ -6091,54 +6149,11 @@ async function generateVProf(){
     const route = await vpBuildRoute();
     const p = { wps: route.wps, total: route.total, totalTime: route.totalTime, fl, flStr, depUnix: vpDepartureUnix(), generatedAt: Date.now(), cols: [], note: '' };
     vprofAltFn = vpMakeAltFn(p);
-
-    const N = Math.max(12, Math.min(60, Math.round(p.total/110)));
-    for(let k=0;k<N;k++){
-      const d = p.total*k/(N-1);
-      const pos = vpInterpWps(p.wps, d);
-      p.cols.push({d, lat:pos.lat, lon:pos.lon, t:pos.time, wx:null});
-    }
-
-    const apiUrl = (document.getElementById('profileApiUrl').value||'').trim();
-    let wxMsg = '';
-    const canWx = apiUrl && p.cols.every(c=>c.lat!=null && !isNaN(c.lat));
-    if(canWx){
-      setProfileStatus(`Pidiendo la previsión de ${p.cols.length} puntos de la ruta a la hora de paso…`);
-      try{
-        const resp = await fetch(apiUrl.replace(/\/$/,'') + '/', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({points: p.cols.map(c=>({lat:c.lat, lon:c.lon, t: p.depUnix + Math.round(c.t*60)}))})
-        });
-        const data = await resp.json();
-        if(data.error) throw new Error(data.error);
-        if(!data.points || !data.points[0] || !data.points[0].lv) throw new Error('El proxy no devuelve el formato nuevo — ¿has pegado flightbrief-profile-worker.js nuevo?');
-        data.points.forEach((pt,i)=>{ if(p.cols[i]) p.cols[i].wx = pt; });
-        if(data.shifted) p.note = 'La fecha del vuelo está fuera del rango de previsión: se ha usado la previsión disponible más cercana.';
-        wxMsg = ' Meteo ✓.';
-      }catch(e){
-        wxMsg = ' Meteo no disponible: ' + e.message;
-      }
-    } else if(!apiUrl){
-      wxMsg = ' Sin URL del proxy: solo el perfil del avión.';
-    } else {
-      wxMsg = ' Faltan coordenadas de algunos puntos: solo el perfil del avión.';
-    }
-
-    let ctMsg = '';
-    if(p.cols.every(c=>c.lat!=null && !isNaN(c.lat))){
-      try{
-        const grid = vpBuildCtGrid(p);
-        if(grid){
-          p.ct = await vpFetchCloudTops(grid, p.depUnix, p.depUnix + Math.round(p.totalTime*60));
-          ctMsg = ` Cima de nubes ✓ (${grid.nodes.length} puntos, ${p.ct.times.length} h).`;
-        }
-      }catch(e){ ctMsg = ' Cima de nubes no disponible: ' + e.message; }
-    }
-    wxMsg += ctMsg;
-    vprof = p;
-    try{ localStorage.setItem(VP_KEY(), JSON.stringify(p)); }catch(e){}
-    vprofCursorD = 0;
-    vprofCtUrls = {};
+    vpMakeCols(p, 110);
+    const wxMsg = await vpAttachWx(p);
+    vprof = p; vprofMain = p; vprofAltRoute = null; vprofView = 'main';
+    try{ localStorage.setItem(VP_KEY(), JSON.stringify(p)); localStorage.removeItem(VP_KEY()+'_alt'); }catch(e){}
+    vprofCursorD = 0; vprofCtUrls = {};
     renderVProf();
     const extra = (p.unmatched && p.unmatched.length) ? ` Cambios de nivel no encontrados en la ruta: ${p.unmatched.join(', ')}.` : '';
     const miss = route.missing.length ? ` Sin coordenadas: ${route.missing.slice(0,6).join(', ')}${route.missing.length>6?'…':''}.` : '';
@@ -6149,10 +6164,136 @@ async function generateVProf(){
   }
 }
 
-function renderVProfFromStore(){
-  if(!vprof){
-    try{ const raw = localStorage.getItem(VP_KEY()); if(raw) vprof = JSON.parse(raw); }catch(e){}
+// ---------- Iberia: todo sale de la navigation log del OFP (coordenadas, FL, TTIME, R/NM, MORA, viento) ----------
+function vpParseOfpLatLon(lat, lon){
+  const a = String(lat||'').match(/([NS])\s*(\d{1,2})\s+(\d{1,2}(?:\.\d+)?)/);
+  const b = String(lon||'').match(/([EW])\s*(\d{1,3})\s+(\d{1,2}(?:\.\d+)?)/);
+  if(!a || !b) return null;
+  let la = +a[2] + (+a[3])/60, lo = +b[2] + (+b[3])/60;
+  if(a[1]==='S') la = -la;
+  if(b[1]==='W') lo = -lo;
+  return [la, lo];
+}
+function vpOfpMin(s){
+  const m = String(s||'').match(/^(\d{1,2})\.(\d{2})$/);
+  return m ? (+m[1])*60 + (+m[2]) : null;
+}
+function vpIbDateUtcMidnight(){
+  const MONTHS = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  const m = String((ibFlightData && ibFlightData.date) || (document.getElementById('ib_date')||{}).value || '').toUpperCase().match(/(\d{2})([A-Z]{3})(\d{2})/);
+  if(m && MONTHS[m[2]]!=null) return Date.UTC(2000 + +m[3], MONTHS[m[2]], +m[1])/1000;
+  const n = new Date(); return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())/1000;
+}
+// TAKE OFF del LOG si está; si no, STD + TAXI+APU del OFP
+function vpIbDepartureUnix(){
+  const tot = hhmmToMin(normTimeStr(ibLog.tot||''));
+  const std = hhmmToMin(String((document.getElementById('ib_std')||{}).value||'').replace('.', ':'));
+  const taxi = vpOfpMin((document.getElementById('ib_fuel_taxiapu_t')||{}).value||'') || 0;
+  const min = tot!=null ? tot : (std!=null ? std + taxi : 0);
+  return vpIbDateUtcMidnight() + min*60;
+}
+
+function vpBuildIberiaPlan(rows){
+  const firstR = parseInt(rows[0].rnm,10);
+  const total = !isNaN(firstR) && firstR>0 ? firstR : null;
+  const wps = rows.map((r,i)=>{
+    const ll = vpParseOfpLatLon(r.lat, r.lon);
+    const rnm = parseInt(r.rnm,10);
+    const ft = /^\d{3}$/.test(r.fl||'') ? parseInt(r.fl,10)*100 : null;
+    return {
+      ident: r.ident, lat: ll?ll[0]:null, lon: ll?ll[1]:null,
+      dist: (total!=null && !isNaN(rnm)) ? total - rnm : null,
+      time: i===0 ? 0 : vpOfpMin(r.ttime),
+      mra: /^\d{3}$/.test(r.mora||'') ? parseInt(r.mora,10)*100 : null,
+      flFt: ft, ofpWind: r.wind||'', ofpOat: r.oat||'', freq: r.freq||''
+    };
+  });
+  // huecos: distancia por coordenadas, tiempo interpolado por distancia
+  let acc = 0;
+  wps.forEach((w,i)=>{
+    if(w.dist==null){ if(i>0 && wps[i-1].lat!=null && w.lat!=null) acc = (wps[i-1].dist||0) + vpGc([wps[i-1].lat,wps[i-1].lon],[w.lat,w.lon]); w.dist = i===0 ? 0 : acc; }
+    acc = w.dist;
+  });
+  const tot = wps[wps.length-1].dist || 1;
+  wps.forEach((w,i)=>{
+    if(w.time!=null) return;
+    let a=i-1; while(a>0 && wps[a].time==null) a--;
+    let b=i+1; while(b<wps.length && wps[b].time==null) b++;
+    if(b>=wps.length){ w.time = wps[a].time; return; }
+    const f = (wps[b].dist-wps[a].dist) ? (w.dist-wps[a].dist)/(wps[b].dist-wps[a].dist) : 0;
+    w.time = wps[a].time + (wps[b].time-wps[a].time)*f;
+  });
+  const anchors = [{d:0, ft:0}];
+  wps.forEach((w,i)=>{ if(i>0 && i<wps.length-1 && w.flFt!=null) anchors.push({d:w.dist, ft:w.flFt}); });
+  anchors.push({d:tot, ft:0});
+  const maxFt = Math.max(...anchors.map(a=>a.ft), 10000);
+  const etps = wps.filter(w=>/ETP/.test(w.ident)).map(w=>({d:w.dist, label: (w.freq||'').replace(/^GO\s+/,'ETP ')||'ETP'}));
+  return {
+    wps, total: tot, totalTime: wps[wps.length-1].time || 1,
+    altAnchors: anchors, fl: {initial:maxFt, steps:[]}, etps,
+    generatedAt: Date.now(), cols: [], note: ''
+  };
+}
+
+async function generateVProfIberia(){
+  if(!ibLog.rows || !ibLog.rows.length){ setProfileStatus('Sube los PDF de Iberia en Setup primero: el perfil sale de la navigation log del OFP.', true); return; }
+  try{
+    const p = vpBuildIberiaPlan(ibLog.rows);
+    p.depUnix = vpIbDepartureUnix();
+    vpMakeCols(p, 25);
+    vprofAltFn = vpMakeAltFn(p);
+    let msg = await vpAttachWx(p, 'Ruta');
+    let alt = null;
+    if(ibLog.altNav && ibLog.altNav.rows && ibLog.altNav.rows.length>1){
+      alt = vpBuildIberiaPlan(ibLog.altNav.rows);
+      alt.isAlt = true; alt.altIcao = ibLog.altNav.icao;
+      alt.depUnix = p.depUnix + Math.round(p.totalTime*60); // el desvío empieza al llegar a destino
+      vpMakeCols(alt, 15);
+      msg += await vpAttachWx(alt, 'Desvío a ' + alt.altIcao);
+    }
+    vprofMain = p; vprofAltRoute = alt; vprofView = 'main'; vprof = p;
+    try{
+      localStorage.setItem(VP_KEY(), JSON.stringify(p));
+      if(alt) localStorage.setItem(VP_KEY()+'_alt', JSON.stringify(alt)); else localStorage.removeItem(VP_KEY()+'_alt');
+    }catch(e){}
+    vprofCursorD = 0; vprofCtUrls = {};
+    vpUpdateRouteSel();
+    renderVProf();
+    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(Math.round(p.totalTime))} · datos de la navigation log del OFP.${msg}`, msg.includes('no disponible'));
+  }catch(err){
+    console.error(err);
+    setProfileStatus('Error generando el perfil: ' + err.message, true);
   }
+}
+
+function vpUpdateRouteSel(){
+  const sel = document.getElementById('vpRouteSel');
+  if(!sel) return;
+  const show = currentAirline==='iberia' && vprofAltRoute;
+  sel.style.display = show ? '' : 'none';
+  if(show){
+    sel.querySelector('[data-v="alt"]').textContent = 'Desvío ' + (vprofAltRoute.altIcao||'ALTN');
+    sel.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.v===vprofView));
+  }
+}
+function setVProfRoute(v){
+  if(v==='alt' && !vprofAltRoute) return;
+  vprofView = v;
+  vprof = v==='alt' ? vprofAltRoute : vprofMain;
+  vprofAltFn = vpMakeAltFn(vprof);
+  vprofCursorD = 0; vprofCtUrls = {};
+  vpUpdateRouteSel();
+  renderVProf();
+}
+
+function renderVProfFromStore(){
+  if(!vprofMain){
+    try{ const raw = localStorage.getItem(VP_KEY()); if(raw) vprofMain = JSON.parse(raw); }catch(e){}
+    try{ const raw = localStorage.getItem(VP_KEY()+'_alt'); vprofAltRoute = raw ? JSON.parse(raw) : null; }catch(e){ vprofAltRoute = null; }
+    vprofView = 'main';
+  }
+  vprof = vprofView==='alt' && vprofAltRoute ? vprofAltRoute : vprofMain;
+  vpUpdateRouteSel();
   if(vprof){
     vprofAltFn = vpMakeAltFn(vprof);
     renderVProf();
@@ -6258,7 +6399,7 @@ function renderVProf(){
     p.cols.forEach((c,i)=>{
       if(i%every) return;
       const L = (c.derived||{}).levels||[];
-      VP_ROWS.forEach(h=>{
+      (p.totalTime < 240 ? [850,700,500,300,250] : VP_ROWS).forEach(h=>{
         const l = L.find(z=>z.hpa===h); if(!l) return;
         const y = Y(l.ft); if(y<top+6) return;
         const x = X(c.d);
@@ -6277,14 +6418,14 @@ function renderVProf(){
   p.wps.forEach((w,i)=>{
     const x = X(w.dist), y = Y(alt(w.dist));
     s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="#ffffff"/>`;
-    if(i>0 && i<p.wps.length-1 && x - lastLabelX >= 36){
+    if(i>0 && i<p.wps.length-1 && !/ETP/.test(w.ident) && x - lastLabelX >= 36){
       s += `<text transform="translate(${(x+2).toFixed(1)},${(y-6).toFixed(1)}) rotate(-55)" font-size="8.5" fill="#dfe7f1" font-family="JetBrains Mono,monospace">${vpEsc(w.ident)}</text>`;
       lastLabelX = x;
     }
   });
 
   // eje de tiempo (arriba) y distancia (abajo)
-  const hourStep = p.totalTime > 360 ? 60 : 30;
+  const hourStep = p.totalTime > 360 ? 60 : p.totalTime > 150 ? 30 : 15;
   for(let t=0; t<=p.totalTime; t+=hourStep){
     const x = X(vpDistAtTime(p.wps, t));
     s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top-4}" y2="${top}" stroke="#6b8099"/><text x="${x.toFixed(1)}" y="${top-8}" text-anchor="middle" font-size="9" fill="#8fa3ba" font-family="JetBrains Mono,monospace">${t===0?vpUtcLabel(0):'+'+minToHHMM(t).replace(/:00$/,'h').replace(/^0/,'')}</text>`;
@@ -6294,6 +6435,14 @@ function renderVProf(){
     const x = X(d);
     s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top+plotH}" y2="${top+plotH+4}" stroke="#6b8099"/><text x="${x.toFixed(1)}" y="${top+plotH+15}" text-anchor="middle" font-size="9" fill="#8fa3ba" font-family="JetBrains Mono,monospace">${d} NM</text>`;
   }
+
+  // ETP (puntos de igual tiempo del OFP)
+  (p.etps||[]).forEach(e=>{
+    const x = X(e.d);
+    s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top}" y2="${top+plotH}" stroke="#4fd1c5" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>
+      <rect x="${(x-30).toFixed(1)}" y="${top+3}" width="60" height="14" rx="3" fill="#060d1a" stroke="#4fd1c5" stroke-width=".8"/>
+      <text x="${x.toFixed(1)}" y="${top+13}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#4fd1c5" font-family="JetBrains Mono,monospace">${vpEsc(e.label)}</text>`;
+  });
 
   // origen a la izquierda, destino a la derecha
   const endLabel = (x, txt, anchor)=>{
@@ -6327,6 +6476,16 @@ function renderVProf(){
   vpUpdateCursor();
 }
 
+// viento/temperatura que planificó el despacho en el waypoint más cercano (OFP de Iberia)
+function vpOfpWindHtml(d){
+  if(!vprof || !vprof.wps.some(w=>w.ofpWind)) return '';
+  let best=null, bd=Infinity;
+  vprof.wps.forEach(w=>{ if(!/^\d{5,6}$/.test(w.ofpWind||'')) return; const x=Math.abs(w.dist-d); if(x<bd){bd=x;best=w;} });
+  if(!best || bd>80) return '';
+  const dir = best.ofpWind.slice(0,3), spd = parseInt(best.ofpWind.slice(3),10);
+  return `<div><span>Viento OFP (${vpEsc(best.ident)})</span><b>${dir}°/${spd} kt${best.ofpOat?' · '+vpEsc(best.ofpOat):''}</b></div>`;
+}
+
 function vpUpdateCursor(){
   if(!vprof || !vprof._X) return;
   const d = vprofCursorD, ft = vprofAltFn(d);
@@ -6351,6 +6510,7 @@ function vpUpdateCursor(){
       <div><span>Cima de nubes</span><b>${col.derived.cloudTop ? 'FL'+Math.round(col.derived.cloudTop/100) + (col.derived.cloudTop>ft ? ' · por encima' : ' · por debajo') : 'Sin nubes'}</b></div>
       <div><span>Nubes en tu nivel</span><b>${Math.round(wx.cc||0)}%</b></div>
       <div><span>Tropopausa</span><b>${col.derived.tropo?'FL'+Math.round(col.derived.tropo/100):'—'}</b></div>
+      ${vpOfpWindHtml(d)}
     </div>`;
     html += hz.length
       ? hz.map(h=>`<div class="vp-hz" style="border-color:${VP_HZ_COLOR[h.type]}"><i style="background:${VP_HZ_COLOR[h.type]}"></i>${VP_HZ_LABEL[h.type](h.sev)}${h.type==='tops' ? ' (cima FL'+Math.round(h.top/100)+')' : ' en tu nivel'}</div>`).join('')
@@ -6584,6 +6744,17 @@ async function renderVProfMap(){
     const type = hz.find(h=>h.type==='cb') ? 'cb' : hz.find(h=>h.type==='turb') ? 'turb' : hz.find(h=>h.type==='icing') ? 'icing' : null;
     L.polyline([[a.lat,a.lon],[b.lat,b.lon]], {color: type ? VP_HZ_COLOR[type] : '#ffffff', weight: type?5:2.5, opacity:.95}).addTo(vprofMap);
   }
+  const other = vprof===vprofMain ? vprofAltRoute : vprofMain;
+  if(other && other.wps){
+    const op = other.wps.filter(w=>w.lat!=null).map(w=>[w.lat,w.lon]);
+    if(op.length>1) L.polyline(op, {color: other.isAlt ? '#f2a900' : '#9fb0c4', weight:2, opacity:.85, dashArray:'6 6'}).addTo(vprofMap).bindTooltip(other.isAlt ? 'Desvío a '+(other.altIcao||'ALTN') : 'Ruta principal');
+  }
+  (vprof.etps||[]).forEach(e=>{
+    const pos = vpInterpWps(vprof.wps, e.d);
+    if(pos.lat==null) return;
+    const etpIcon = L.divIcon({className:'', html:`<div style="transform:translate(-50%,-50%);white-space:nowrap;font:700 10px 'JetBrains Mono',monospace;color:#4fd1c5;background:rgba(6,13,26,.85);border:1px solid #4fd1c5;border-radius:4px;padding:1px 4px">${vpEsc(e.label)}</div>`, iconSize:[0,0]});
+    L.marker([pos.lat,pos.lon], {icon:etpIcon, interactive:false}).addTo(vprofMap);
+  });
   const dot = L.divIcon({className:'', html:'<div style="width:6px;height:6px;border-radius:50%;background:#fff;border:1.5px solid #060d1a"></div>', iconSize:[6,6]});
   pts.forEach(w=>{ if(!w.interp) L.marker([w.lat,w.lon], {icon:dot}).addTo(vprofMap).bindTooltip(w.ident, {direction:'top', offset:[0,-4]}); });
   // posición del avión: círculo blanco relleno
@@ -6640,6 +6811,69 @@ function applyMapCardPrefs(){
       if(btn) btn.textContent = 'Mostrar';
     }
   });
+}
+
+// Nav-log del alternativo ("ALTN1 NAV-LOG LEMD-LEVD", al final del OFP de Iberia). Misma tabla que la
+// principal: se lee por posición de las columnas, desde la cabecera que va debajo de "ALTN1 NAV-LOG"
+// hasta la fila del aeropuerto alternativo (o hasta el plan de vuelo ATC "*FILED*").
+async function extractIberiaAltNavLog(pdf, altIcao){
+  const FALLBACK_COLS = {wpt:52,lat:102,trk:172,fl:201,oat:232,wind:264,gs:306,time:334,ttime:367,rnm:408,tbrn:443,trmg:478,rmk:517};
+  const HEADER_KEYS = {WPTTO:'wpt',LAT:'lat',TRK:'trk',FL:'fl',MORA:'fl',OAT:'oat',WIND:'wind',AWIND:'wind','G/S':'gs',TIME:'time',TTIME:'ttime','R/NM':'rnm',TBRN:'tbrn',TRMG:'trmg','RMK/':'rmk'};
+  const rows = [];
+  let started = false;
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const toks = [];
+    tc.items.forEach(it=>{
+      const tr = it.transform;
+      if(Math.abs(tr[1])>0.01 || Math.abs(tr[2])>0.01) return;
+      const str = (it.str||'').replace(/\u00a0/g,' ');
+      if(!str.trim()) return;
+      const cw = it.width && str.length ? it.width/str.length : 6.3;
+      const re = /\S+/g; let m;
+      while((m = re.exec(str))) toks.push({t:m[0], x:tr[4]+m.index*cw, y:tr[5]});
+    });
+    let markY = Infinity;
+    if(!started){
+      const mk = toks.find((t,k)=> t.t==='NAV-LOG' && toks.slice(Math.max(0,k-3), k).some(x=>/^ALTN1$/.test(x.t)));
+      if(!mk) continue;
+      started = true; markY = mk.y;
+    }
+    const header = toks.filter(t=>(t.t==='WPTTO'||t.t==='WPT') && t.y < markY).sort((a,b)=>b.y-a.y)[0];
+    if(!header) break;
+    const headerY = header.y;
+    const cols = Object.assign({}, FALLBACK_COLS), found = {};
+    toks.filter(t=>Math.abs(t.y-headerY)<14 && HEADER_KEYS[t.t]).forEach(t=>{ const k = HEADER_KEYS[t.t]; found[k] = found[k]==null ? t.x : Math.min(found[k], t.x); });
+    if(Object.keys(found).length>=10) Object.assign(cols, found);
+    const colOrder = Object.keys(cols).sort((a,b)=>cols[a]-cols[b]);
+    const colOf = x=>{ let c = colOrder[0]; colOrder.forEach(k=>{ if(x >= cols[k]-4) c = k; }); return c; };
+    let stopY = -Infinity;
+    toks.forEach(t=>{ if(t.y<headerY && (/FILED/.test(t.t) || /^ALTN2$/.test(t.t) || t.t==='ENRT' || /^\(FPL/.test(t.t))) stopY = Math.max(stopY, t.y); });
+    const lineKey = y=>Math.round(y/2.5);
+    const badLines = new Set();
+    toks.forEach(t=>{ if(/^(FIR|OPERATIONAL|PRTD|válido|vuelo)$/i.test(t.t)) badLines.add(lineKey(t.y)); });
+    const isBad = y=>[-1,0,1].some(d=>badLines.has(lineKey(y)+d));
+    const data = toks.filter(t=>t.y < headerY-14 && t.y > stopY+3 && !isBad(t.y));
+    const idents = data.filter(t=>colOf(t.x)==='wpt' && data.some(o=>colOf(o.x)==='lat' && /^[NS]\d{2}$/.test(o.t) && Math.abs(o.y-t.y)<3)).sort((a,b)=>b.y-a.y);
+    let done = false;
+    for(let i=0;i<idents.length;i++){
+      const id = idents[i];
+      const lower = i+1<idents.length ? idents[i+1].y+5 : -Infinity;
+      const cells = {};
+      data.filter(t=>t.y <= id.y+5 && t.y > lower).sort((a,b)=>a.x-b.x).forEach(t=>{
+        const key = colOf(t.x) + (id.y - t.y < 6 ? '_top' : '_bot');
+        cells[key] = cells[key] ? cells[key]+' '+t.t : t.t;
+      });
+      const c = k=>cells[k]||'';
+      rows.push({ ident:c('wpt_top'), freq:c('wpt_bot'), lat:c('lat_top'), lon:c('lat_bot'), trk:c('trk_top'), ws:c('trk_bot'),
+        fl:c('fl_top'), mora:c('fl_bot'), oat:c('oat_top'), isa:c('oat_bot'), wind:c('wind_top'), gs:c('gs_top'), nm:c('gs_bot'),
+        time:c('time_top'), ttime:c('ttime_top'), rnm:c('rnm_top'), tbrn:c('tbrn_top'), trmg:c('trmg_top') });
+      if(altIcao && rows[rows.length-1].ident===altIcao && rows.length>1){ done = true; break; }
+    }
+    if(done || stopY>-Infinity) break;
+  }
+  return rows;
 }
 
 // ================= IBERIA · FLIGHT · LOG (navigation log del OFP) =================
@@ -7279,6 +7513,14 @@ async function handleIberiaOfpUpload(fileList){
       const navRows = await extractIberiaNavLog(pdf, ofpData.arr);
       ibNavCount = navRows.length;
       applyIberiaNavLog(navRows, [ofpData.flightNum, ofpData.date, ofpData.std].join('|'));
+      try{
+        const altIcao = ofpData.alt || ((ibFlightData.altSummary||[])[0]||{}).icao;
+        const altRows = altIcao ? await extractIberiaAltNavLog(pdf, altIcao) : [];
+        ibLog.altNav = altRows.length>1 ? {icao: altIcao, rows: altRows} : null;
+        saveIberiaLog();
+      }catch(e){ console.warn('Nav-log del alternativo:', e); }
+      vprofMain = null; vprofAltRoute = null; vprofView = 'main'; vprof = null;
+      try{ localStorage.removeItem(VP_KEY()); localStorage.removeItem(VP_KEY()+'_alt'); }catch(e){}
     }catch(e){
       console.error(e);
       setOfpStatus(`Error leyendo el OFP: ${e.message}`, true);
