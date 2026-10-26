@@ -1097,6 +1097,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
         </button>
         <div class="vp-zoom"><button data-z="1" class="active" onclick="setVProfZoom(1)">1×</button><button data-z="2" onclick="setVProfZoom(2)">2×</button><button data-z="4" onclick="setVProfZoom(4)">4×</button></div>
         <button class="btn btn-ghost btn-sm vp-radar-btn active" id="vpCtBtn" onclick="toggleVProfClouds()">Cima de nubes</button>
+        <button class="btn btn-ghost btn-sm vp-radar-btn" id="vpRadarBtn" onclick="toggleVProfRadar()">Radar actual</button>
       </div>
       <p class="sub" id="profileStatus" style="margin-top:8px"></p>
       <div id="vpAlerts"></div>
@@ -6574,6 +6575,32 @@ async function renderVProfMap(){
   vprofPlane = L.marker([pts[0].lat, pts[0].lon], {icon:planeIcon, interactive:false, zIndexOffset:1000}).addTo(vprofMap);
   vprofMap.fitBounds(L.latLngBounds(pts.map(w=>[w.lat,w.lon])), {padding:[20,20]});
   setTimeout(()=>{ if(vprofMap){ vprofMap.invalidateSize(); vpUpdateCursor(); } }, 150);
+  vprofRadarLayer = null;
+  if(document.getElementById('vpRadarBtn').classList.contains('active')) addVProfRadar();
+}
+
+// Radar de precipitación (RainViewer, gratis). Es la situación de AHORA, no la prevista: no cambia
+// al mover el avión. Se puede ver a la vez que la capa de cima de nubes.
+async function addVProfRadar(){
+  if(!vprofMap) return;
+  try{
+    const r = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const j = await r.json();
+    const frames = (j.radar && j.radar.past) || [];
+    if(!frames.length) throw new Error('sin datos');
+    const last = frames[frames.length-1];
+    vprofRadarLayer = L.tileLayer(`${j.host}${last.path}/256/{z}/{x}/{y}/2/1_1.png`, {opacity:.75, maxNativeZoom:7, maxZoom:12, zIndex:500}).addTo(vprofMap);
+  }catch(e){
+    setProfileStatus('No se pudo cargar el radar (necesita conexión).', true);
+    document.getElementById('vpRadarBtn').classList.remove('active');
+  }
+}
+function toggleVProfRadar(){
+  const btn = document.getElementById('vpRadarBtn');
+  const on = !btn.classList.contains('active');
+  btn.classList.toggle('active', on);
+  if(on) addVProfRadar();
+  else if(vprofRadarLayer && vprofMap){ vprofMap.removeLayer(vprofRadarLayer); vprofRadarLayer = null; }
 }
 
 // ================= COLLAPSIBLE MAP CARDS (satellite route + vertical profile) =================
