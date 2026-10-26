@@ -154,6 +154,11 @@ body{
 .flight-panel.active{display:block;}
 @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
+.weight-ok{color:var(--ok)!important;font-weight:700;}
+.weight-warn{color:#f2a900!important;font-weight:700;}
+.weight-danger{color:var(--danger)!important;font-weight:700;}
+.fuel-nonzero{background:rgba(242,169,0,.15)!important;color:var(--amber)!important;font-weight:700;border-color:var(--amber)!important;}
+
 .lognav-input{
   width:56px;background:var(--surface);border:1px solid var(--line);border-radius:6px;
   color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 3px;text-align:center;
@@ -810,7 +815,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="ftl-result">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Paso 1 — Ramp fuel − Trip − Taxi+APU</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Fuel en destino</div>
           <div class="num" id="ibFuelStep1">--</div>
           <div class="sub" id="ibFuelStep1Formula" style="margin-top:2px"></div>
         </div>
@@ -819,7 +824,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="ftl-result" style="margin-top:10px">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Paso 2 — menos Min fuel altn</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Extra sobre MIN FUEL ALTN</div>
           <div class="num" id="ibFuelStep2">--</div>
           <div class="sub" id="ibFuelStep2Formula" style="margin-top:2px"></div>
         </div>
@@ -828,7 +833,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="ftl-result" style="margin-top:10px">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Equivalente en tiempo</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Tiempo para pensar</div>
           <div class="num" id="ibFuelStep3">--:--</div>
           <div class="sub" id="ibFuelStep3Formula" style="margin-top:2px"></div>
         </div>
@@ -879,7 +884,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="ftl-result">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Paso 1 — Total − Trip − Taxy out</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Fuel en destino</div>
           <div class="num" id="fuelStep1">--</div>
           <div class="sub" id="fuelStep1Formula" style="margin-top:2px"></div>
         </div>
@@ -888,7 +893,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="ftl-result" style="margin-top:10px">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Paso 2 — menos Min div</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Extra sobre MIN DIV</div>
           <div class="num" id="fuelStep2">--</div>
           <div class="sub" id="fuelStep2Formula" style="margin-top:2px"></div>
         </div>
@@ -897,7 +902,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="ftl-result" style="margin-top:10px">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Equivalente en tiempo</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Tiempo para pensar</div>
           <div class="num" id="fuelStep3">--:--</div>
           <div class="sub" id="fuelStep3Formula" style="margin-top:2px"></div>
         </div>
@@ -4394,6 +4399,9 @@ function parseHM(id){
 
 function calcFuel(){
   saveAppState();
+  ['fuelR_zfm','fuelR_tom','fuelR_elm'].forEach(id=>colorizeWeightField(id, id+'Max'));
+  ['fuelL_wxx_kg','fuelL_atc_kg','fuelL_opn_kg'].forEach(highlightIfNonzero);
+
   const total = fuelNum('fuelL_total_kg');
   const trip = fuelNum('fuelL_trip_kg');
   const taxy = fuelNum('fuelL_taxy_kg');
@@ -4451,8 +4459,34 @@ function calcFuel(){
   step3F.textContent = `${step2} / ${finalResKg} × ${finalResMin} min = ${timeMin.toFixed(1)} min`;
 }
 
+// Colours the real-value input next to each max-weight field: green with 1500kg+ margin to the
+// max, orange with less than that (but still under), red at or above the max.
+function colorizeWeightField(realId, maxId){
+  const realEl = document.getElementById(realId), maxEl = document.getElementById(maxId);
+  if(!realEl || !maxEl) return;
+  realEl.classList.remove('weight-ok','weight-warn','weight-danger');
+  const real = fuelNum(realId), max = fuelNum(maxId);
+  if(real==null || max==null) return;
+  const margin = max - real;
+  if(margin > 1500) realEl.classList.add('weight-ok');
+  else if(margin > 0) realEl.classList.add('weight-warn');
+  else realEl.classList.add('weight-danger');
+}
+
+// Highlights HOLD / ADDITIONAL / TANKER whenever their kg value isn't zero — these are normally 0,
+// so a nonzero value is worth noticing at a glance.
+function highlightIfNonzero(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const v = fuelNum(id);
+  el.classList.toggle('fuel-nonzero', v!=null && v!==0);
+}
+
 function calcIberiaFuel(){
   saveAppState();
+  ['ib_fuel_zfw','ib_fuel_tof','ib_fuel_tow','ib_fuel_lgw'].forEach(id=>colorizeWeightField(id, id+'Max'));
+  ['ib_fuel_hold_kg','ib_fuel_additional_kg','ib_fuel_tanker'].forEach(highlightIfNonzero);
+
   const ramp = fuelNum('ib_fuel_ramp');
   const trip = fuelNum('ib_fuel_trip_kg');
   const taxiapu = fuelNum('ib_fuel_taxiapu_kg');
