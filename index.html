@@ -1417,6 +1417,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
       <div class="grid2" style="margin-top:10px">
         <div class="fuel-row"><label>OFF BLOCK</label><div class="fuel-row-inputs single"><input id="iblog_offblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);ibLogHeaderInput('offblk',this)" onchange="this.value=normTimeStr(this.value);ibLogHeaderInput('offblk',this)"></div></div>
         <div class="fuel-row"><label>TAKE OFF</label><div class="fuel-row-inputs single"><input id="iblog_tot" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);ibLogHeaderInput('tot',this)" onchange="this.value=normTimeStr(this.value);ibLogHeaderInput('tot',this)"></div></div>
+        <div class="fuel-row"><label>ON BLOCK</label><div class="fuel-row-inputs single"><input id="iblog_onblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);ibLogHeaderInput('onblk',this)" onchange="this.value=normTimeStr(this.value);ibLogHeaderInput('onblk',this)"></div></div>
+        <div class="fuel-row"><label>LAND</label><div class="fuel-row-inputs single"><input id="iblog_land" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);ibLogHeaderInput('land',this)" onchange="this.value=normTimeStr(this.value);ibLogHeaderInput('land',this)"></div></div>
+        <div class="fuel-row"><label>TOTAL BLOCK</label><div class="fuel-row-inputs single"><input id="iblog_blk" placeholder="--:--" readonly></div></div>
+        <div class="fuel-row"><label>FLT TIME</label><div class="fuel-row-inputs single"><input id="iblog_flt" placeholder="--:--" readonly></div></div>
       </div>
       <p class="sub" id="ibLogSummary" style="margin-top:6px"></p>
       <div id="ibLogTableWrap" style="overflow-x:auto;margin-top:10px;display:none;border:1px solid var(--line);border-radius:9px;">
@@ -6187,7 +6191,7 @@ async function extractIberiaNavLog(pdf, arrIcao){
   return rows;
 }
 const IB_LOG_KEY = 'flightbrief_log_iberia';
-let ibLog = { ofpKey:'', offblk:'', tot:'', rows:[], inputs:{} };
+let ibLog = { ofpKey:'', offblk:'', tot:'', onblk:'', land:'', rows:[], inputs:{} };
 
 function ibEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
@@ -6216,13 +6220,13 @@ function saveIberiaLog(){
 function loadIberiaLogState(){
   try{
     const raw = localStorage.getItem(IB_LOG_KEY);
-    if(raw) ibLog = Object.assign({ofpKey:'', offblk:'', tot:'', rows:[], inputs:{}}, JSON.parse(raw));
+    if(raw) ibLog = Object.assign({ofpKey:'', offblk:'', tot:'', onblk:'', land:'', rows:[], inputs:{}}, JSON.parse(raw));
   }catch(e){ console.warn('No se pudo leer el LOG Iberia:', e); }
   renderIberiaLog();
 }
 // mismo OFP subido otra vez -> conserva lo ya rellenado; OFP distinto -> log en blanco
 function applyIberiaNavLog(rows, ofpKey){
-  if(ibLog.ofpKey !== ofpKey) ibLog = { ofpKey, offblk:'', tot:'', rows, inputs:{} };
+  if(ibLog.ofpKey !== ofpKey) ibLog = { ofpKey, offblk:'', tot:'', onblk:'', land:'', rows, inputs:{} };
   else ibLog.rows = rows;
   saveIberiaLog();
   renderIberiaLog();
@@ -6238,6 +6242,16 @@ function ibLogInput(el){
 function ibLogHeaderInput(field, el){
   ibLog[field] = el.value;
   if(field==='tot') recalcIberiaEto(); else saveIberiaLog();
+  recalcIberiaTimes();
+}
+
+// TOTAL BLOCK = ON BLOCK − OFF BLOCK, FLT TIME = LAND − TAKE OFF (si pasa de medianoche, suma 24h)
+function recalcIberiaTimes(){
+  const blk = hhmmDiff(normTimeStr(ibLog.offblk), normTimeStr(ibLog.onblk));
+  const flt = hhmmDiff(normTimeStr(ibLog.tot), normTimeStr(ibLog.land));
+  const blkEl = document.getElementById('iblog_blk'), fltEl = document.getElementById('iblog_flt');
+  if(blkEl) blkEl.value = blk==null ? '' : minToHHMM(blk);
+  if(fltEl) fltEl.value = flt==null ? '' : minToHHMM(flt);
 }
 
 // ETO de cada punto = TAKE OFF TIME + TTIME (tiempo acumulado del OFP) -> el último cae en la ETA
@@ -6261,6 +6275,9 @@ function renderIberiaLog(){
   if(!body) return;
   setVal('iblog_offblk', ibLog.offblk);
   setVal('iblog_tot', ibLog.tot);
+  setVal('iblog_onblk', ibLog.onblk||'');
+  setVal('iblog_land', ibLog.land||'');
+  recalcIberiaTimes();
   if(!ibLog.rows.length){
     body.innerHTML = ''; wrap.style.display = 'none'; empty.style.display = '';
     return;
