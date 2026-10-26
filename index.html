@@ -3514,6 +3514,17 @@ async function handleOfpUpload(file){
       if(masterDocDebugEl) masterDocDebugEl.value = '(no se encontró la sección "MASTER DOCUMENT" en ninguna página)';
     }
 
+    setOfpStatus('Buscando la Route Planning Guide (coordenadas de la ruta)…');
+    let rpgMsg = '';
+    try{
+      const rpgRows = await extractAeaRoutePlanningGuide(pdf);
+      aeaRpg = rpgRows.length>1 ? {rows: rpgRows, dep: plan.dep, arr: plan.arr} : null;
+      try{ if(aeaRpg) localStorage.setItem(AEA_RPG_KEY, JSON.stringify(aeaRpg)); else localStorage.removeItem(AEA_RPG_KEY); }catch(e){}
+      rpgMsg = aeaRpg ? `Route Planning Guide ✓ (${rpgRows.length} puntos con coordenadas).` : 'Route Planning Guide: no encontrada (los mapas usarán la base de waypoints).';
+    }catch(e){ rpgMsg = 'Route Planning Guide: error al leerla.'; }
+    vprof = null; vprofMain = null; vprofAltRoute = null;
+    try{ localStorage.removeItem(VP_KEY()); }catch(e){}
+
     setOfpStatus(`Setup listo. Buscando NOTAM en el mismo PDF…`);
     const bulletin = await extractNotamBulletinFromPdf(pdf);
     let notamMsg = '';
@@ -3572,7 +3583,7 @@ async function handleOfpUpload(file){
       'Doc. ETOPS ' + (etopsDoc.defects.length || etopsDoc.originDestRows.length ? '✓' : '✗ (no encontrada)'),
     ].join(' · ');
 
-    setOfpStatus(`${newFormat?'Formato nuevo — ':''}${fieldsMsg}. ${notamMsg} ${wxMsg} ${mapsMsg} ${fuelMsg} ${extraMsg} ${masterDocMsg}`);
+    setOfpStatus(`${newFormat?'Formato nuevo — ':''}${fieldsMsg}. ${notamMsg} ${wxMsg} ${mapsMsg} ${fuelMsg} ${extraMsg} ${masterDocMsg} ${rpgMsg}`);
     saveAppState();
   }catch(err){
     console.error(err);
@@ -4429,23 +4440,30 @@ async function generateSatMap(){
     const arrC = state.arr ? airportCoord(db, state.arr) : null;
     const startPoint = depC ? [depC.lat, depC.lon] : null;
 
-    const seq = tokenizeRouteSequence(state.routeText);
-    const navDb = seq.some(s=>s.type==='name') ? await loadNavData() : {};
-
-    const ambiguous = buildAmbiguousList(seq, navDb, startPoint);
-    if(ambiguous.length){
-      renderWaypointPicker(ambiguous);
-      setSatMapStatus(`${ambiguous.length} nombre(s) duplicado(s) en el mundo — elige cuál usar arriba y pulsa el botón para generar el mapa.`);
-      return;
+    if(currentAirline!=='iberia' && !aeaRpg) loadAeaRpg();
+    const ofpPts = vpOfpRoutePoints();
+    let seq = [], navDb = {}, midPts = [], unresolved = 0;
+    if(!ofpPts){
+      seq = tokenizeRouteSequence(state.routeText);
+      navDb = seq.some(s=>s.type==='name') ? await loadNavData() : {};
+      const ambiguous = buildAmbiguousList(seq, navDb, startPoint);
+      if(ambiguous.length){
+        renderWaypointPicker(ambiguous);
+        setSatMapStatus(`${ambiguous.length} nombre(s) duplicado(s) en el mundo — elige cuál usar arriba y pulsa el botón para generar el mapa.`);
+        return;
+      }
+      const res = resolveRouteSequence(seq, navDb, startPoint, routeWaypointChoice);
+      midPts = res.resolved; unresolved = res.unresolved;
     }
     document.getElementById('satMapPicker').innerHTML = '';
 
-    const { resolved: midPts, unresolved } = resolveRouteSequence(seq, navDb, startPoint, routeWaypointChoice);
-
     const line = [];
-    if(depC) line.push([depC.lat, depC.lon]);
-    midPts.forEach(p=>line.push(p));
-    if(arrC) line.push([arrC.lat, arrC.lon]);
+    if(ofpPts) ofpPts.forEach(w=>line.push([w.lat, w.lon]));
+    else {
+      if(depC) line.push([depC.lat, depC.lon]);
+      midPts.forEach(p=>line.push(p));
+      if(arrC) line.push([arrC.lat, arrC.lon]);
+    }
 
     if(!markers.length && !line.length){
       setSatMapStatus('No se han encontrado coordenadas para los aeropuertos de Setup.', true);
@@ -4467,6 +4485,7 @@ async function generateSatMap(){
       L.marker([m.lat, m.lon], {icon:amberIcon}).addTo(satLeafletMap)
         .bindPopup(`<b>${m.code}</b> — ${m.role}<br>${m.name||''}`);
     });
+    if(ofpPts) ofpPts.forEach(w=>{ if(!/^-|^(T_O_C|T_O_D|T_OSC|B_OSD)$/.test(w.ident)) L.marker([w.lat,w.lon], {icon:wptIcon}).addTo(satLeafletMap).bindPopup(w.ident); });
     seq.forEach(item=>{
       if(item.type==='name'){
         const c = navDb[item.name];
@@ -4492,6 +4511,10 @@ async function generateSatMap(){
 
     const namedCount = airports.length - markers.length;
     const namedWpts = seq.filter(s=>s.type==='name').length;
+    if(ofpPts){
+      setSatMapStatus(`Mapa generado con las coordenadas del propio OFP (${ofpPts.length} puntos). ${markers.length}/${airports.length} aeropuertos ubicados.`);
+      return;
+    }
     setSatMapStatus(
       `Mapa generado. ${markers.length}/${airports.length} aeropuertos ubicados. ` +
       (namedWpts
@@ -4805,6 +4828,7 @@ function loadAppState(){
 // the other airline's data can never show through, then recalls this airline's own save if any.
 function loadAirlineData(){
   resetSharedAppData();
+  if(currentAirline!=='iberia') loadAeaRpg(); else aeaRpg = null;
   vprof = null; vprofMain = null; vprofAltRoute = null; vprofView = 'main';
   if(loadAppState()){
     setOfpStatus('Datos del último vuelo recuperados de este iPad.');
@@ -6086,11 +6110,93 @@ const VP_HZ_COLOR = {turb:'#3b82f6', icing:'#a855f7', cb:'#e5484d', tops:'#cbd5e
 
 function vpNearestName(d){
   let best=null, bd=Infinity;
-  vprof.wps.forEach(w=>{ if(/^(TOC|TOD)$|ETP/.test(w.ident)) return; const x=Math.abs(w.dist-d); if(x<bd){bd=x;best=w.ident;} });
+  vprof.wps.forEach(w=>{ if(/^(TOC|TOD|T_O_C|T_O_D|T_OSC|B_OSD)$|ETP|^-/.test(w.ident)) return; const x=Math.abs(w.dist-d); if(x<bd){bd=x;best=w.ident;} });
   return best||'';
 }
 function vpTimeLabel(tMin){ return '+'+minToHHMM(tMin); }
 function vpUtcLabel(tMin){ if(!vprof || !vprof.depUnix) return ''; const dt=new Date((vprof.depUnix + tMin*60)*1000); return String(dt.getUTCHours()).padStart(2,'0')+':'+String(dt.getUTCMinutes()).padStart(2,'0')+'Z'; }
+
+// ---------- Air Europa: "ROUTE PLANNING GUIDE" del OFP (todos los puntos con coordenadas) ----------
+// Fila tipo: "BARDI   N40350W006182   300/029-01 0.22   310 840 465   M027 M47   4615"
+//            ident    coordenadas     viento     EET    PFL MACH GS   WC   TEMP  NM a destino
+let aeaRpg = null;
+const AEA_RPG_KEY = 'flightbrief_rpg_aea';
+
+function parseAeaRoutePlanningGuide(text){
+  const a = text.search(/ROUTE\s+PLANNING\s+GUIDE/);
+  if(a<0) return [];
+  const rest = text.slice(a);
+  const b = rest.search(/NAVIGATION\s+LOG/);
+  const block = b>0 ? rest.slice(0, b) : rest;
+  const rows = [];
+  block.split('\n').forEach(line=>{
+    const m = line.match(/^\s*(\S+?)\s*([NS])(\d{2})(\d{3})([EW])(\d{3})(\d{3})(?!\d)(.*)$/);
+    if(!m) return;
+    const lat = (+m[3] + (+m[4])/600) * (m[2]==='S'?-1:1);
+    const lon = (+m[6] + (+m[7])/600) * (m[5]==='W'?-1:1);
+    const toks = m[8].trim().split(/\s+/).filter(Boolean);
+    let wind='', eet=null, pfl='', temp='', toDest=null, eetIdx=-1, tempIdx=-1;
+    toks.forEach((t,k)=>{
+      const w = t.match(/^(\d{3})\/(\d{3})/);
+      if(w && !wind){ wind = w[1]+w[2]; return; }
+      const e = t.match(/^(\d{1,2})\.(\d{2})$/);
+      if(e && eet==null){ eet = (+e[1])*60 + (+e[2]); eetIdx = k; return; }
+      if(eetIdx>=0 && !pfl && /^(CLB|DES|DSC|\d{3})$/.test(t)){ pfl = t; return; }
+      if(/^[PM]\d{2}$/.test(t)){ temp = t; tempIdx = k; return; }
+    });
+    const last = toks[toks.length-1];
+    if(last && /^\d{1,5}$/.test(last) && (eetIdx<0 || toks.length-1 > Math.max(eetIdx, tempIdx))) toDest = +last;
+    rows.push({ident:m[1], lat, lon, wind, eet, pfl, temp, toDest});
+  });
+  return rows;
+}
+
+async function extractAeaRoutePlanningGuide(pdf){
+  let start = null;
+  for(let p=1; p<=pdf.numPages; p++){
+    const t = await quickPageText(await pdf.getPage(p));
+    if(/ROUTE\s+PLANNING\s+GUIDE/i.test(t)){ start = p; break; }
+  }
+  if(start==null) return [];
+  let text = '';
+  for(let p=start; p<=Math.min(pdf.numPages, start+4); p++){
+    const t = await layoutPageText(await pdf.getPage(p));
+    text += '\n' + t;
+    if(/NAVIGATION\s+LOG/.test(t)) break;
+  }
+  return parseAeaRoutePlanningGuide(text);
+}
+
+function loadAeaRpg(){
+  try{ const raw = localStorage.getItem(AEA_RPG_KEY); aeaRpg = raw ? JSON.parse(raw) : null; }catch(e){ aeaRpg = null; }
+}
+
+// Puntos de la ruta con coordenadas del propio OFP (Air Europa: Route Planning Guide; Iberia: navigation log)
+function vpOfpRoutePoints(){
+  if(currentAirline==='iberia'){
+    if(!ibLog.rows || ibLog.rows.length<2) return null;
+    const pts = ibLog.rows.map(r=>{ const ll = vpParseOfpLatLon(r.lat, r.lon); return ll ? {ident:r.ident, lat:ll[0], lon:ll[1]} : null; }).filter(Boolean);
+    return pts.length>1 ? pts : null;
+  }
+  if(!aeaRpg || !aeaRpg.rows || aeaRpg.rows.length<2) return null;
+  return aeaRpg.rows.map(r=>({ident:r.ident, lat:r.lat, lon:r.lon}));
+}
+
+// Plan del perfil a partir de la Route Planning Guide (mismo formato que el de Iberia)
+function vpBuildAeaRpgPlan(rows){
+  const total = rows[0].toDest || null;
+  const mraBy = {};
+  (masterDocWaypoints||[]).forEach(w=>{ if(w.mra) mraBy[w.ident] = parseInt(w.mra,10)*100; });
+  const wps = rows.map((r,i)=>({
+    ident: r.ident, lat: r.lat, lon: r.lon,
+    dist: total!=null ? (r.toDest!=null ? total - r.toDest : (i===rows.length-1 ? total : null)) : null,
+    time: i===0 ? 0 : r.eet,
+    mra: mraBy[r.ident]!=null ? mraBy[r.ident] : null,
+    flFt: /^\d{3}$/.test(r.pfl) ? parseInt(r.pfl,10)*100 : null,
+    ofpWind: r.wind, ofpOat: r.temp, freq: ''
+  }));
+  return vpFinishPlan(wps);
+}
 
 function vpMakeCols(p, perNm){
   const N = Math.max(12, Math.min(60, Math.round(p.total/(perNm||110))));
@@ -6103,7 +6209,7 @@ function vpMakeCols(p, perNm){
 }
 
 // Meteo del proxy a la hora de paso + capa de cima de nubes. Devuelve el texto para el estado.
-async function vpAttachWx(p, label){
+async function vpAttachWx(p, label, skipCt){
   const apiUrl = (document.getElementById('profileApiUrl').value||'').trim();
   const tag = label ? label+': ' : '';
   let msg = '';
@@ -6124,7 +6230,7 @@ async function vpAttachWx(p, label){
     }catch(e){ msg = ` ${tag}meteo no disponible: ${e.message}.`; }
   } else if(!apiUrl) msg = ` ${tag}sin URL del proxy: solo el perfil del avión.`;
   else msg = ` ${tag}faltan coordenadas de algunos puntos: solo el perfil del avión.`;
-  if(hasCoords){
+  if(hasCoords && !skipCt){
     try{
       const grid = vpBuildCtGrid(p);
       if(grid){
@@ -6141,6 +6247,8 @@ let vprofMain = null, vprofAltRoute = null, vprofView = 'main';
 async function generateVProf(){
   if(currentAirline==='iberia') return generateVProfIberia();
   if(!state.dep || !state.arr){ setProfileStatus('Sube el OFP en Setup primero (falta Departure/Arrival).', true); return; }
+  if(!aeaRpg) loadAeaRpg();
+  if(aeaRpg && aeaRpg.rows && aeaRpg.rows.length>1) return generateVProfAeaRpg();
   const flStr = ((document.getElementById('add_flightLevels')||{}).value||'').trim();
   const fl = vpParseFlightLevels(flStr);
   if(!fl){ setProfileStatus('Falta "Flight levels" en Datos de vuelo (Setup). Ejemplo: FL310/HIJ 330/KORNO 350/MERUD', true); return; }
@@ -6158,6 +6266,25 @@ async function generateVProf(){
     const extra = (p.unmatched && p.unmatched.length) ? ` Cambios de nivel no encontrados en la ruta: ${p.unmatched.join(', ')}.` : '';
     const miss = route.missing.length ? ` Sin coordenadas: ${route.missing.slice(0,6).join(', ')}${route.missing.length>6?'…':''}.` : '';
     setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(p.totalTime)} · ${route.fromMaster?'distancias del Master Document':'distancias calculadas'}.${wxMsg}${extra}${miss}`, wxMsg.includes('no disponible'));
+  }catch(err){
+    console.error(err);
+    setProfileStatus('Error generando el perfil: ' + err.message, true);
+  }
+}
+
+async function generateVProfAeaRpg(){
+  try{
+    const p = vpBuildAeaRpgPlan(aeaRpg.rows);
+    p.depUnix = vpDepartureUnix();
+    vpMakeCols(p, 110);
+    vprofAltFn = vpMakeAltFn(p);
+    const msg = await vpAttachWx(p);
+    vprof = p; vprofMain = p; vprofAltRoute = null; vprofView = 'main';
+    try{ localStorage.setItem(VP_KEY(), JSON.stringify(p)); localStorage.removeItem(VP_KEY()+'_alt'); }catch(e){}
+    vprofCursorD = 0; vprofCtUrls = {};
+    vpUpdateRouteSel();
+    renderVProf();
+    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(Math.round(p.totalTime))} · ruta y niveles de la Route Planning Guide del OFP.${msg}`, msg.includes('no disponible'));
   }catch(err){
     console.error(err);
     setProfileStatus('Error generando el perfil: ' + err.message, true);
@@ -6208,6 +6335,10 @@ function vpBuildIberiaPlan(rows){
       flFt: ft, ofpWind: r.wind||'', ofpOat: r.oat||'', freq: r.freq||''
     };
   });
+  return vpFinishPlan(wps);
+}
+
+function vpFinishPlan(wps){
   // huecos: distancia por coordenadas, tiempo interpolado por distancia
   let acc = 0;
   wps.forEach((w,i)=>{
@@ -6227,7 +6358,11 @@ function vpBuildIberiaPlan(rows){
   wps.forEach((w,i)=>{ if(i>0 && i<wps.length-1 && w.flFt!=null) anchors.push({d:w.dist, ft:w.flFt}); });
   anchors.push({d:tot, ft:0});
   const maxFt = Math.max(...anchors.map(a=>a.ft), 10000);
-  const etps = wps.filter(w=>/ETP/.test(w.ident)).map(w=>({d:w.dist, label: (w.freq||'').replace(/^GO\s+/,'ETP ')||'ETP'}));
+  const etps = [];
+  wps.forEach(w=>{
+    if(/ETP/.test(w.ident)) etps.push({d:w.dist, label: w.freq ? w.freq.replace(/^GO\s+/,'ETP ') : w.ident, color:'#4fd1c5'});
+    else if(/^(ENTRY|EXIT)\d*$/.test(w.ident)) etps.push({d:w.dist, label: w.ident.replace('ENTRY','ETOPS IN ').replace('EXIT','ETOPS OUT ').trim(), color:'#f2a900'});
+  });
   return {
     wps, total: tot, totalTime: wps[wps.length-1].time || 1,
     altAnchors: anchors, fl: {initial:maxFt, steps:[]}, etps,
@@ -6242,15 +6377,26 @@ async function generateVProfIberia(){
     p.depUnix = vpIbDepartureUnix();
     vpMakeCols(p, 25);
     vprofAltFn = vpMakeAltFn(p);
-    let msg = await vpAttachWx(p, 'Ruta');
     let alt = null;
     if(ibLog.altNav && ibLog.altNav.rows && ibLog.altNav.rows.length>1){
       alt = vpBuildIberiaPlan(ibLog.altNav.rows);
       alt.isAlt = true; alt.altIcao = ibLog.altNav.icao;
       alt.depUnix = p.depUnix + Math.round(p.totalTime*60); // el desvío empieza al llegar a destino
       vpMakeCols(alt, 15);
-      msg += await vpAttachWx(alt, 'Desvío a ' + alt.altIcao);
     }
+    let msg = await vpAttachWx(p, 'Ruta', true);
+    if(alt) msg += await vpAttachWx(alt, 'Desvío a ' + alt.altIcao, true);
+    // una sola rejilla de cima de nubes para la ruta y el desvío (menos consultas a Open-Meteo)
+    try{
+      const both = { wps: p.wps.concat(alt ? alt.wps : []), cols: p.cols.concat(alt ? alt.cols : []), total: p.total };
+      const grid = vpBuildCtGrid(both);
+      if(grid){
+        const tEnd = alt ? alt.depUnix + Math.round(alt.totalTime*60) : p.depUnix + Math.round(p.totalTime*60);
+        p.ct = await vpFetchCloudTops(grid, p.depUnix, tEnd);
+        if(alt) alt.ct = p.ct;
+        msg += ` Cima de nubes ✓ (${grid.nodes.length} puntos, ${p.ct.times.length} h).`;
+      }
+    }catch(e){ msg += ` Cima de nubes no disponible: ${e.message}.`; }
     vprofMain = p; vprofAltRoute = alt; vprofView = 'main'; vprof = p;
     try{
       localStorage.setItem(VP_KEY(), JSON.stringify(p));
@@ -6418,7 +6564,7 @@ function renderVProf(){
   p.wps.forEach((w,i)=>{
     const x = X(w.dist), y = Y(alt(w.dist));
     s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="#ffffff"/>`;
-    if(i>0 && i<p.wps.length-1 && !/ETP/.test(w.ident) && x - lastLabelX >= 36){
+    if(i>0 && i<p.wps.length-1 && !/ETP|^-|^(T_O_C|T_O_D|T_OSC|B_OSD|ENTRY\d*|EXIT\d*)$/.test(w.ident) && x - lastLabelX >= 36){
       s += `<text transform="translate(${(x+2).toFixed(1)},${(y-6).toFixed(1)}) rotate(-55)" font-size="8.5" fill="#dfe7f1" font-family="JetBrains Mono,monospace">${vpEsc(w.ident)}</text>`;
       lastLabelX = x;
     }
@@ -6437,11 +6583,16 @@ function renderVProf(){
   }
 
   // ETP (puntos de igual tiempo del OFP)
+  let etpLastEnd = [-999, -999];
   (p.etps||[]).forEach(e=>{
     const x = X(e.d);
-    s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top}" y2="${top+plotH}" stroke="#4fd1c5" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>
-      <rect x="${(x-30).toFixed(1)}" y="${top+3}" width="60" height="14" rx="3" fill="#060d1a" stroke="#4fd1c5" stroke-width=".8"/>
-      <text x="${x.toFixed(1)}" y="${top+13}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#4fd1c5" font-family="JetBrains Mono,monospace">${vpEsc(e.label)}</text>`;
+    const halfW = e.label.length*2.9+6;
+    const lane = (x-halfW) > etpLastEnd[0] + 2 ? 0 : 1;   // si se solapa con la anterior, una fila más abajo
+    etpLastEnd[lane] = x + halfW;
+    const ly = lane*17;
+    s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top}" y2="${top+plotH}" stroke="${e.color||'#4fd1c5'}" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>
+      <rect x="${(x-halfW).toFixed(1)}" y="${top+3+ly}" width="${(halfW*2).toFixed(1)}" height="14" rx="3" fill="#060d1a" stroke="${e.color||'#4fd1c5'}" stroke-width=".8"/>
+      <text x="${x.toFixed(1)}" y="${top+13+ly}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${e.color||'#4fd1c5'}" font-family="JetBrains Mono,monospace">${vpEsc(e.label)}</text>`;
   });
 
   // origen a la izquierda, destino a la derecha
@@ -6481,7 +6632,7 @@ function vpOfpWindHtml(d){
   if(!vprof || !vprof.wps.some(w=>w.ofpWind)) return '';
   let best=null, bd=Infinity;
   vprof.wps.forEach(w=>{ if(!/^\d{5,6}$/.test(w.ofpWind||'')) return; const x=Math.abs(w.dist-d); if(x<bd){bd=x;best=w;} });
-  if(!best || bd>80) return '';
+  if(!best || bd>Math.max(80, (vprof.total||0)*0.03)) return '';
   const dir = best.ofpWind.slice(0,3), spd = parseInt(best.ofpWind.slice(3),10);
   return `<div><span>Viento OFP (${vpEsc(best.ident)})</span><b>${dir}°/${spd} kt${best.ofpOat?' · '+vpEsc(best.ofpOat):''}</b></div>`;
 }
@@ -6594,7 +6745,9 @@ function vpBuildCtGrid(p){
   let minLat = Math.min(...pts.map(w=>w.lat))-4, maxLat = Math.max(...pts.map(w=>w.lat))+4;
   let minLon = Math.min(...pts.map(w=>w.lon))-5, maxLon = Math.max(...pts.map(w=>w.lon))+5;
   minLat = Math.max(-80, minLat); maxLat = Math.min(80, maxLat);
-  let step = p.total>2500 ? 1.5 : p.total>1000 ? 1 : 0.5;
+  const corridor = p.total>1500 ? 330 : 200;
+  const maxNodes = p.total>1500 ? 420 : 220;
+  let step = p.total>2500 ? 1.5 : p.total>1000 ? 1 : 0.75;
   for(let tries=0; tries<8; tries++){
     const lat0 = Math.floor(minLat/step)*step, lon0 = Math.floor(minLon/step)*step;
     const nLat = Math.round((maxLat-lat0)/step)+1, nLon = Math.round((maxLon-lon0)/step)+1;
@@ -6602,10 +6755,10 @@ function vpBuildCtGrid(p){
     for(let i=0;i<nLat;i++) for(let j=0;j<nLon;j++){
       const lat = lat0+i*step, lon = lon0+j*step;
       let dmin = Infinity;
-      for(const s of samples){ const d = vpGc([lat,lon], s); if(d<dmin){ dmin=d; if(d<330) break; } }
-      if(dmin<=330 + step*45) nodes.push({i, j, lat:+lat.toFixed(3), lon:+lon.toFixed(3)});
+      for(const s of samples){ const d = vpGc([lat,lon], s); if(d<dmin){ dmin=d; if(d<corridor) break; } }
+      if(dmin<=corridor + step*45) nodes.push({i, j, lat:+lat.toFixed(3), lon:+lon.toFixed(3)});
     }
-    if(nodes.length<=460) return {step, lat0, lon0, nLat, nLon, nodes};
+    if(nodes.length<=maxNodes) return {step, lat0, lon0, nLat, nLon, nodes};
     step += 0.5;
   }
   return null;
@@ -6622,9 +6775,19 @@ async function vpFetchCloudTops(grid, t0, t1){
     setProfileStatus(`Calculando la cima de nubes alrededor de la ruta… ${Math.min(k+CH, grid.nodes.length)}/${grid.nodes.length} puntos`);
     const base = 'https://api.open-meteo.com/v1/forecast?latitude=' + chunk.map(n=>n.lat).join(',') +
       '&longitude=' + chunk.map(n=>n.lon).join(',') + '&hourly=' + hourly + '&timeformat=unixtime&timezone=GMT';
-    let r = await fetch(base + `&start_date=${ymd(t0-3600)}&end_date=${ymd(t1+3600)}`);
-    if(!r.ok){ r = await fetch(base + '&forecast_days=3'); shifted = true; }
+    const get = async url=>{
+      let r = await fetch(url);
+      if(r.status===429){ // límite de Open-Meteo por minuto: esperar y reintentar una vez
+        for(let w=60; w>0; w-=5){ setProfileStatus(`Open-Meteo pide esperar (demasiadas consultas seguidas). Reintentando en ${w} s…`); await new Promise(res=>setTimeout(res, 5000)); }
+        r = await fetch(url);
+      }
+      return r;
+    };
+    let r = await get(base + `&start_date=${ymd(t0-3600)}&end_date=${ymd(t1+3600)}`);
+    if(!r.ok && r.status!==429){ r = await get(base + '&forecast_days=3'); shifted = true; }
+    if(r.status===429) throw new Error('Open-Meteo ha limitado las consultas por hoy o por esta hora. Espera un rato y vuelve a generar (el perfil y la meteo de la ruta sí están)');
     if(!r.ok) throw new Error('Open-Meteo ' + r.status);
+    await new Promise(res=>setTimeout(res, 400));
     let data = await r.json();
     if(!Array.isArray(data)) data = [data];
     data.forEach((loc, q)=>{
@@ -6752,7 +6915,7 @@ async function renderVProfMap(){
   (vprof.etps||[]).forEach(e=>{
     const pos = vpInterpWps(vprof.wps, e.d);
     if(pos.lat==null) return;
-    const etpIcon = L.divIcon({className:'', html:`<div style="transform:translate(-50%,-50%);white-space:nowrap;font:700 10px 'JetBrains Mono',monospace;color:#4fd1c5;background:rgba(6,13,26,.85);border:1px solid #4fd1c5;border-radius:4px;padding:1px 4px">${vpEsc(e.label)}</div>`, iconSize:[0,0]});
+    const etpIcon = L.divIcon({className:'', html:`<div style="transform:translate(-50%,-50%);white-space:nowrap;font:700 10px 'JetBrains Mono',monospace;color:${e.color||'#4fd1c5'};background:rgba(6,13,26,.85);border:1px solid ${e.color||'#4fd1c5'};border-radius:4px;padding:1px 4px">${vpEsc(e.label)}</div>`, iconSize:[0,0]});
     L.marker([pos.lat,pos.lon], {icon:etpIcon, interactive:false}).addTo(vprofMap);
   });
   const dot = L.divIcon({className:'', html:'<div style="width:6px;height:6px;border-radius:50%;background:#fff;border:1.5px solid #060d1a"></div>', iconSize:[6,6]});
