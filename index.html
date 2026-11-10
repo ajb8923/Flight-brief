@@ -594,7 +594,7 @@ tr.ab-on .ln-a{display:inline;}
 .ln-direct-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:2500;display:flex;gap:12px;align-items:center;background:var(--surface-2);border:1px solid #6ea8ff;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);box-shadow:0 10px 30px -10px rgba(0,0,0,.7);max-width:92vw;}
 .ln-clear-btn{color:var(--danger);border-color:rgba(229,72,77,.4);}
 /* ---------- Mapa del perfil: base oscura, viento, nivel ---------- */
-.vp-map{background:#1d2430 !important;}
+.vp-map{background:#2a2d31 !important;}
 .vp-map .leaflet-control-attribution{background:rgba(6,13,26,.6);color:#6b8099;font-size:9px;}
 .vp-map .leaflet-control-attribution a{color:#8fa3ba;}
 .vp-ct-bar.wind{background:linear-gradient(90deg,rgb(98,113,183),rgb(57,97,159) 8%,rgb(74,148,169) 17%,rgb(77,141,123) 25%,rgb(83,165,83) 33%,rgb(192,190,58) 44%,rgb(222,128,52) 56%,rgb(212,66,72) 67%,rgb(176,82,184) 83%,rgb(236,214,236));}
@@ -7381,7 +7381,12 @@ async function renderVProfMap(){
   vprofMap = L.map(el, {attributionControl:true, zoomControl:true, preferCanvas:false});
   if(vprofMap.attributionControl && vprofMap.attributionControl.setPrefix) vprofMap.attributionControl.setPrefix(false);
   // mapa base oscuro sin satélite (como Windy); sin conexión se queda el fondo gris y las capas siguen viéndose
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:12, attribution:'© OpenStreetMap · © CARTO'}).addTo(vprofMap);
+  // Esri "Dark Gray Canvas": gratis y sin clave (mismo servidor que el satélite que ya usábamos)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, maxNativeZoom:16, attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(vprofMap);
+  // fronteras y nombres por encima de las capas de color
+  const refPane = vprofMap.createPane ? vprofMap.createPane('vpRef') : null;
+  if(refPane){ refPane.style.zIndex = 460; refPane.style.pointerEvents = 'none'; }
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, maxNativeZoom:16, pane: refPane ? 'vpRef' : undefined, opacity:.9}).addTo(vprofMap);
 
   vprofCtCtrl = L.control({position:'bottomleft'});
   vprofCtCtrl.onAdd = ()=>{
@@ -7407,11 +7412,11 @@ async function renderVProfMap(){
   (vprof.etps||[]).forEach(e=>{
     const pos = vpInterpWps(vprof.wps, e.d);
     if(pos.lat==null) return;
-    const etpIcon = L.divIcon({className:'', html:`<div style="transform:translate(-50%,-50%);white-space:nowrap;font:700 10px 'JetBrains Mono',monospace;color:${e.color||'#4fd1c5'};background:rgba(6,13,26,.85);border:1px solid ${e.color||'#4fd1c5'};border-radius:4px;padding:1px 4px">${vpEsc(e.label)}</div>`, iconSize:[0,0]});
-    L.marker([pos.lat,pos.lon], {icon:etpIcon, interactive:false}).addTo(vprofMap);
+    const etpIcon = L.divIcon({className:'', html:`<div style="width:10px;height:10px;transform:rotate(45deg);background:${e.color||'#4fd1c5'};border:1.5px solid #060d1a"></div>`, iconSize:[10,10], iconAnchor:[5,5]});
+    L.marker([pos.lat,pos.lon], {icon:etpIcon}).addTo(vprofMap).bindTooltip(e.label, {direction:'right', offset:[6,0]});
   });
   const dot = L.divIcon({className:'', html:'<div style="width:6px;height:6px;border-radius:50%;background:#fff;border:1.5px solid #060d1a"></div>', iconSize:[6,6]});
-  pts.forEach(w=>{ if(!w.interp && !/^-|^(T_O_C|T_O_D|T_OSC|B_OSD)$/.test(w.ident)) L.marker([w.lat,w.lon], {icon:dot}).addTo(vprofMap).bindTooltip(w.ident, {direction:'top', offset:[0,-4]}); });
+  pts.forEach(w=>{ if(!w.interp && !/^-|^(T_O_C|T_O_D|T_OSC|B_OSD|ENTRY\d*|EXIT\d*)$|ETP/.test(w.ident)) L.marker([w.lat,w.lon], {icon:dot}).addTo(vprofMap).bindTooltip(w.ident, {direction:'top', offset:[0,-4]}); });
   const planeIcon = L.divIcon({className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#ffffff;border:2px solid #060d1a;box-shadow:0 0 0 2px rgba(255,255,255,.35)"></div>', iconSize:[14,14], iconAnchor:[7,7]});
   vprofPlane = L.marker([pts[0].lat, pts[0].lon], {icon:planeIcon, interactive:false, zIndexOffset:1000}).addTo(vprofMap);
   vprofMap.fitBounds(L.latLngBounds(pts.map(w=>[w.lat,w.lon])), {padding:[20,20]});
