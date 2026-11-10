@@ -593,6 +593,16 @@ tr.ab-on .ln-a{display:inline;}
 .ln-menu .ln-menu-undo{font-weight:500;font-size:12px;color:var(--muted);}
 .ln-direct-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:2500;display:flex;gap:12px;align-items:center;background:var(--surface-2);border:1px solid #6ea8ff;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);box-shadow:0 10px 30px -10px rgba(0,0,0,.7);max-width:92vw;}
 .ln-clear-btn{color:var(--danger);border-color:rgba(229,72,77,.4);}
+/* ---------- Mapa del perfil: base oscura, viento, nivel ---------- */
+.vp-map{background:#1d2430 !important;}
+.vp-map .leaflet-control-attribution{background:rgba(6,13,26,.6);color:#6b8099;font-size:9px;}
+.vp-map .leaflet-control-attribution a{color:#8fa3ba;}
+.vp-ct-bar.wind{background:linear-gradient(90deg,rgb(98,113,183),rgb(57,97,159) 8%,rgb(74,148,169) 17%,rgb(77,141,123) 25%,rgb(83,165,83) 33%,rgb(192,190,58) 44%,rgb(222,128,52) 56%,rgb(212,66,72) 67%,rgb(176,82,184) 83%,rgb(236,214,236));}
+.vp-ct-bar.clouds{background:linear-gradient(90deg,rgb(104,140,196),rgb(56,178,190) 18%,rgb(64,196,88) 32%,rgb(228,224,52) 59%,rgb(244,104,48) 79%,rgb(226,72,226));}
+.vp-level{margin-top:8px;background:rgba(79,209,197,.08);border:1px solid rgba(79,209,197,.3);border-radius:11px;padding:9px 14px 6px;}
+.vp-level-label{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.06em;color:var(--text);margin-bottom:4px;}
+.vp-level input[type=range]{width:100%;accent-color:var(--amber);}
+.vp-level-ticks{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);}
 /* ---------- Avisos de app sin conexión / actualización ---------- */
 .app-toast{
   position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
@@ -1133,12 +1143,18 @@ tr.ab-on .ln-a{display:inline;}
         </button>
         <div class="vp-zoom" id="vpRouteSel" style="display:none"><button data-v="main" class="active" onclick="setVProfRoute('main')">Ruta</button><button data-v="alt" onclick="setVProfRoute('alt')">Desvío</button></div>
         <div class="vp-zoom"><button data-z="1" class="active" onclick="setVProfZoom(1)">1×</button><button data-z="2" onclick="setVProfZoom(2)">2×</button><button data-z="4" onclick="setVProfZoom(4)">4×</button></div>
-        <button class="btn btn-ghost btn-sm vp-radar-btn active" id="vpCtBtn" onclick="toggleVProfClouds()">Cima de nubes</button>
+        <div class="vp-zoom" id="vpLayerSel"><button data-l="wind" onclick="setVProfLayer('wind')">Viento</button><button data-l="clouds" onclick="setVProfLayer('clouds')">Cima nubes</button><button data-l="none" onclick="setVProfLayer('none')">Sin capa</button></div>
+        <button class="btn btn-ghost btn-sm vp-radar-btn active" id="vpPartBtn" onclick="toggleVProfParticles()">Partículas</button>
         <button class="btn btn-ghost btn-sm vp-radar-btn" id="vpRadarBtn" onclick="toggleVProfRadar()">Radar actual</button>
       </div>
       <p class="sub" id="profileStatus" style="margin-top:8px"></p>
       <div id="vpAlerts"></div>
       <div id="vpMap" class="vp-map" style="display:none"></div>
+      <div class="vp-level" id="vpLevelBox" style="display:none">
+        <div class="vp-level-label" id="vpLevelLabel"></div>
+        <input type="range" id="vpLevelRange" min="0" max="5" step="1" value="0" oninput="setVProfLevel(this.value)">
+        <div class="vp-level-ticks"><span>AUTO</span><span>FL100</span><span>FL180</span><span>FL300</span><span>FL340</span><span>FL390</span></div>
+      </div>
       <div id="vpChartWrap" class="vp-chart-wrap" style="display:none">
         <div class="vp-axis" id="vpAxis"></div>
         <div class="vp-scroll" id="vpScroll"><div id="vpChart"></div></div>
@@ -6471,6 +6487,8 @@ async function vpAttachWx(p, label, skipCt){
       if(grid){
         p.ct = await vpFetchCloudTops(grid, p.depUnix, p.depUnix + Math.round(p.totalTime*60));
         msg += ` Cima de nubes ✓ (${p.ct.times.length} h).`;
+        try{ p.wind = await vpFetchWind(vpWindGrid(p), p.depUnix, p.depUnix + Math.round(p.totalTime*60)); msg += ' Viento del mapa ✓.'; }
+        catch(e){ msg += ` Viento del mapa no disponible: ${e.message}.`; }
       }
     }catch(e){ msg += ` Cima de nubes no disponible: ${e.message}.`; }
   }
@@ -6629,6 +6647,8 @@ async function generateVProfIberia(){
         const tEnd = alt ? alt.depUnix + Math.round(alt.totalTime*60) : p.depUnix + Math.round(p.totalTime*60);
         p.ct = await vpFetchCloudTops(grid, p.depUnix, tEnd);
         if(alt) alt.ct = p.ct;
+        try{ p.wind = await vpFetchWind(vpWindGrid(both), p.depUnix, tEnd); if(alt) alt.wind = p.wind; msg += ' Viento del mapa ✓.'; }
+        catch(e){ msg += ` Viento del mapa no disponible: ${e.message}.`; }
         msg += ` Cima de nubes ✓ (${grid.nodes.length} puntos, ${p.ct.times.length} h).`;
       }
     }catch(e){ msg += ` Cima de nubes no disponible: ${e.message}.`; }
@@ -6881,7 +6901,7 @@ function vpUpdateCursor(){
   if(pl){ pl.setAttribute('x', x); pl.setAttribute('y', y-5); }
   const pos = vpInterpWps(vprof.wps, d);
   if(vprofPlane && pos.lat!=null) vprofPlane.setLatLng([pos.lat, pos.lon]);
-  vpCtUpdate(vprof.depUnix + Math.round(pos.time*60));
+  vpMapUpdate(vprof.depUnix + Math.round(pos.time*60));
 
   const col = vprof.cols.reduce((b,c)=> Math.abs(c.d-d) < Math.abs(b.d-d) ? c : b, vprof.cols[0]);
   const wx = col.derived && col.derived.levels.length ? vpWxAt(col, ft) : null;
@@ -6953,8 +6973,8 @@ function renderVProfAlerts(){
 // que está el avión del perfil: al moverlo, la capa cambia de hora.
 const VP_CT_LEVELS = [850, 700, 600, 500, 400, 300, 250, 200, 150];
 const VP_CT_STOPS = [ // metros -> color (escala tipo Windy)
-  [500,  [90,122,166]], [3000, [63,160,160]], [5000, [76,176,80]],
-  [9000, [200,200,58]], [12000,[224,96,58]],  [15000,[208,72,208]]
+  [500,  [104,140,196]], [3000, [56,178,190]], [5000, [64,196,88]],
+  [9000, [228,224,52]], [12000,[244,104,48]],  [15000,[226,72,226]]
 ];
 let vprofCtOverlay = null, vprofCtFrame = -1, vprofCtUrls = {}, vprofCtCtrl = null;
 
@@ -6971,18 +6991,20 @@ function vpCtColor(m){
   return null;
 }
 
-function vpBuildCtGrid(p){
+function vpBuildCtGrid(p, opts){
+  opts = opts || {};
   const pts = p.wps.filter(w=>w.lat!=null);
   if(pts.length<2) return null;
   const samples = [];
   pts.forEach(w=>samples.push([w.lat,w.lon]));
   p.cols.forEach(c=>{ if(c.lat!=null) samples.push([c.lat,c.lon]); });
-  let minLat = Math.min(...pts.map(w=>w.lat))-4, maxLat = Math.max(...pts.map(w=>w.lat))+4;
-  let minLon = Math.min(...pts.map(w=>w.lon))-5, maxLon = Math.max(...pts.map(w=>w.lon))+5;
+  const corridor = opts.corridor || (p.total>1500 ? 330 : 200);
+  const maxNodes = opts.maxNodes || (p.total>1500 ? 420 : 220);
+  let step = opts.step || (p.total>2500 ? 1.5 : p.total>1000 ? 1 : 0.75);
+  const mLat = Math.max(4, corridor/60 + 1), mLon = Math.max(5, corridor/45 + 1);
+  let minLat = Math.min(...pts.map(w=>w.lat))-mLat, maxLat = Math.max(...pts.map(w=>w.lat))+mLat;
+  let minLon = Math.min(...pts.map(w=>w.lon))-mLon, maxLon = Math.max(...pts.map(w=>w.lon))+mLon;
   minLat = Math.max(-80, minLat); maxLat = Math.min(80, maxLat);
-  const corridor = p.total>1500 ? 330 : 200;
-  const maxNodes = p.total>1500 ? 420 : 220;
-  let step = p.total>2500 ? 1.5 : p.total>1000 ? 1 : 0.75;
   for(let tries=0; tries<8; tries++){
     const lat0 = Math.floor(minLat/step)*step, lon0 = Math.floor(minLon/step)*step;
     const nLat = Math.round((maxLat-lat0)/step)+1, nLon = Math.round((maxLon-lon0)/step)+1;
@@ -7071,7 +7093,7 @@ function vpCtFrameUrl(ct, h){
       if(wsum<0.25) continue;
       const col = vpCtColor(sum/wsum); if(!col) continue;
       const o = (py*W+px)*4;
-      img.data[o]=col[0]; img.data[o+1]=col[1]; img.data[o+2]=col[2]; img.data[o+3]=Math.round(205*Math.min(1,wsum));
+      img.data[o]=col[0]; img.data[o+1]=col[1]; img.data[o+2]=col[2]; img.data[o+3]=Math.round(240*Math.min(1,wsum));
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -7079,32 +7101,268 @@ function vpCtFrameUrl(ct, h){
   return vprofCtUrls[h];
 }
 
-function vpCtUpdate(tUnix){
-  if(!vprofMap || !vprof || !vprof.ct || !vprof.ct.times.length) return;
-  const on = document.getElementById('vpCtBtn').classList.contains('active');
-  if(!on){ if(vprofCtOverlay){ vprofMap.removeLayer(vprofCtOverlay); vprofCtOverlay=null; vprofCtFrame=-1; } if(vprofCtCtrl) vprofCtCtrl.getContainer().style.display='none'; return; }
-  const ct = vprof.ct;
-  let h = 0, bd = Infinity;
-  ct.times.forEach((tt,k)=>{ const d = Math.abs(tt - tUnix); if(d<bd){ bd=d; h=k; } });
-  if(h!==vprofCtFrame || !vprofCtOverlay){
-    const url = vpCtFrameUrl(ct, h);
-    const bounds = [[ct.lat0, ct.lon0], [ct.lat0+(ct.nLat-1)*ct.step, ct.lon0+(ct.nLon-1)*ct.step]];
-    if(vprofCtOverlay) vprofCtOverlay.setUrl(url);
-    else vprofCtOverlay = L.imageOverlay(url, bounds, {opacity:.85, interactive:false}).addTo(vprofMap);
-    vprofCtFrame = h;
-  }
-  if(vprofCtCtrl){
-    const dt = new Date(ct.times[h]*1000);
-    const hhmm = String(dt.getUTCHours()).padStart(2,'0')+':00Z';
-    const c = vprofCtCtrl.getContainer(); c.style.display='';
-    c.querySelector('.vp-ct-time').textContent = `Cima de nubes · ${hhmm}${ct.shifted?' (previsión más cercana)':''}`;
-  }
+// ---------- Viento en el mapa (como Windy): color por velocidad + partículas animadas ----------
+// Rejilla más gruesa que la de nubes (el viento es un campo suave) en 5 niveles de presión, para cada
+// hora del vuelo. El mapa muestra la hora en la que está el avión del perfil y el nivel elegido
+// (o AUTO = el más cercano a la altitud del avión en ese momento).
+const VP_WIND_LEVELS = [700, 500, 300, 250, 200];
+const VP_WIND_STOPS = [ // nudos -> color (escala parecida a la de Windy)
+  [0,[98,113,183]], [15,[57,97,159]], [30,[74,148,169]], [45,[77,141,123]], [60,[83,165,83]],
+  [80,[192,190,58]], [100,[222,128,52]], [120,[212,66,72]], [150,[176,82,184]], [180,[236,214,236]]
+];
+let vprofLayer = (()=>{ try{ return localStorage.getItem('fb_vp_layer') || 'wind'; }catch(e){ return 'wind'; } })();
+let vprofParticles = true;
+let vprofLevelSel = 0;            // 0 = AUTO, 1..5 = VP_WIND_LEVELS
+let vprofOverlay = null, vprofOverlayKind = '', vprofOverlayKey = '';
+let vprofWindField = null;        // {wind, h, li} que usan las partículas
+let vprofWindUrls = {};
+let vpPart = null;
+
+// rejilla del viento: más ancha que la de nubes (para ver el chorro alrededor de la ruta) y más gruesa
+function vpWindGrid(p){
+  const long = p.total>1500;
+  return vpBuildCtGrid(p, {corridor: long ? 600 : 420, step: long ? 3 : 1.5, maxNodes: long ? 200 : 130});
+}
+function vpCoarsenGrid(g){
+  const nodes = g.nodes.filter(n=>n.i%2===0 && n.j%2===0).map(n=>({i:n.i/2, j:n.j/2, lat:n.lat, lon:n.lon}));
+  return {step:g.step*2, lat0:g.lat0, lon0:g.lon0, nLat:Math.ceil(g.nLat/2), nLon:Math.ceil(g.nLon/2), nodes};
 }
 
-function toggleVProfClouds(){
-  const btn = document.getElementById('vpCtBtn');
-  btn.classList.toggle('active');
-  if(vprof) vpCtUpdate(vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60));
+async function vpFetchWind(grid, t0, t1){
+  const hourly = VP_WIND_LEVELS.map(l=>`wind_speed_${l}hPa,wind_direction_${l}hPa`).join(',');
+  const ymd = t=>new Date(t*1000).toISOString().slice(0,10);
+  const CH = 60;
+  let times = null, shifted = false;
+  const cells = {};
+  for(let k=0;k<grid.nodes.length;k+=CH){
+    const chunk = grid.nodes.slice(k, k+CH);
+    setProfileStatus(`Descargando el viento alrededor de la ruta… ${Math.min(k+CH, grid.nodes.length)}/${grid.nodes.length} puntos`);
+    const base = 'https://api.open-meteo.com/v1/forecast?latitude=' + chunk.map(n=>n.lat).join(',') +
+      '&longitude=' + chunk.map(n=>n.lon).join(',') + '&hourly=' + hourly + '&wind_speed_unit=kn&timeformat=unixtime&timezone=GMT';
+    const get = async url=>{
+      let r = await fetch(url);
+      if(r.status===429){
+        for(let w=60; w>0; w-=5){ setProfileStatus(`Open-Meteo pide esperar (demasiadas consultas seguidas). Reintentando en ${w} s…`); await new Promise(res=>setTimeout(res, 5000)); }
+        r = await fetch(url);
+      }
+      return r;
+    };
+    let r = await get(base + `&start_date=${ymd(t0-3600)}&end_date=${ymd(t1+3600)}`);
+    if(!r.ok && r.status!==429){ r = await get(base + '&forecast_days=3'); shifted = true; }
+    if(r.status===429) throw new Error('Open-Meteo ha limitado las consultas. Espera un rato y vuelve a generar');
+    if(!r.ok) throw new Error('Open-Meteo ' + r.status);
+    await new Promise(res=>setTimeout(res, 400));
+    let data = await r.json();
+    if(!Array.isArray(data)) data = [data];
+    data.forEach((loc, q)=>{
+      const h = loc.hourly; if(!h || !h.time) return;
+      if(!times){
+        times = [];
+        h.time.forEach((tt,idx)=>{ if(tt>=t0-3600 && tt<=t1+3600) times.push({tt, idx}); });
+        if(!times.length){ shifted = true; const n = Math.max(2, Math.ceil((t1-t0)/3600)+2); times = h.time.slice(0, n).map((tt,idx)=>({tt, idx})); }
+      }
+      const node = chunk[q];
+      cells[node.i*grid.nLon + node.j] = times.map(({idx})=>{
+        const out = [];
+        VP_WIND_LEVELS.forEach(l=>{
+          const s = (h[`wind_speed_${l}hPa`]||[])[idx], d = (h[`wind_direction_${l}hPa`]||[])[idx];
+          if(s==null || d==null){ out.push(null, null); return; }
+          const r = d*Math.PI/180;
+          out.push(Math.round(-s*Math.sin(r)), Math.round(-s*Math.cos(r))); // u (este), v (norte) en kt
+        });
+        return out;
+      });
+    });
+  }
+  return {step:grid.step, lat0:grid.lat0, lon0:grid.lon0, nLat:grid.nLat, nLon:grid.nLon, levels:VP_WIND_LEVELS, times:(times||[]).map(t=>t.tt), cells, shifted};
+}
+
+// viento (u,v en kt) en cualquier punto: interpolación entre los 4 nodos de alrededor
+function vpWindUV(w, h, li, lat, lon){
+  const gi = (lat-w.lat0)/w.step, gj = (lon-w.lon0)/w.step;
+  const i0 = Math.floor(gi), j0 = Math.floor(gj), fi = gi-i0, fj = gj-j0;
+  let u=0, v=0, ws=0;
+  const add = (i,j,wt)=>{
+    if(wt<=0 || i<0 || j<0 || i>=w.nLat || j>=w.nLon) return;
+    const c = w.cells[i*w.nLon+j]; if(!c || !c[h]) return;
+    const uu = c[h][li*2], vv = c[h][li*2+1]; if(uu==null) return;
+    u += uu*wt; v += vv*wt; ws += wt;
+  };
+  add(i0,j0,(1-fi)*(1-fj)); add(i0+1,j0,fi*(1-fj)); add(i0,j0+1,(1-fi)*fj); add(i0+1,j0+1,fi*fj);
+  if(ws<0.3) return null;
+  return [u/ws, v/ws, ws];
+}
+
+function vpWindColor(kt){
+  const S = VP_WIND_STOPS;
+  if(kt>=S[S.length-1][0]) return S[S.length-1][1];
+  for(let i=0;i<S.length-1;i++){
+    if(kt>=S[i][0] && kt<S[i+1][0]){ const f=(kt-S[i][0])/(S[i+1][0]-S[i][0]); return S[i][1].map((c,k)=>Math.round(c+(S[i+1][1][k]-c)*f)); }
+  }
+  return S[0][1];
+}
+
+function vpGridBounds(g){ return [[g.lat0, g.lon0], [g.lat0+(g.nLat-1)*g.step, g.lon0+(g.nLon-1)*g.step]]; }
+
+function vpWindFrameUrl(w, h, li){
+  const key = h+'_'+li;
+  if(vprofWindUrls[key]) return vprofWindUrls[key];
+  const [[latMin,lonMin],[latMax,lonMax]] = vpGridBounds(w);
+  const merc = lat=>Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360));
+  const yMin = merc(latMin), yMax = merc(latMax);
+  const W = Math.min(360, Math.max(60, (w.nLon-1)*10));
+  const H = Math.min(800, Math.max(40, Math.round(W * (yMax-yMin) / ((lonMax-lonMin)*Math.PI/180))));
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'); const img = ctx.createImageData(W, H);
+  for(let py=0; py<H; py++){
+    const lat = Math.atan(Math.sinh(yMax - py/(H-1)*(yMax-yMin)))*180/Math.PI;
+    for(let px=0; px<W; px++){
+      const lon = lonMin + px/(W-1)*(lonMax-lonMin);
+      const uv = vpWindUV(w, h, li, lat, lon); if(!uv) continue;
+      const c = vpWindColor(Math.hypot(uv[0], uv[1]));
+      const o = (py*W+px)*4;
+      img.data[o]=c[0]; img.data[o+1]=c[1]; img.data[o+2]=c[2]; img.data[o+3]=Math.round(215*Math.min(1, uv[2]));
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  vprofWindUrls[key] = cv.toDataURL('image/png');
+  return vprofWindUrls[key];
+}
+
+// nivel de viento a mostrar: el elegido, o en AUTO el más cercano a la altitud del avión
+function vpCurrentLevelIdx(){
+  if(vprofLevelSel>0) return vprofLevelSel-1;
+  const ft = vprof && vprofAltFn ? vprofAltFn(vprofCursorD) : 30000;
+  let best = 0, bd = Infinity;
+  VP_WIND_LEVELS.forEach((l,i)=>{ const d = Math.abs(vpPressureAltFt(l) - Math.max(ft, 8000)); if(d<bd){ bd=d; best=i; } });
+  return best;
+}
+function vpNearestFrame(times, tUnix){
+  let h = 0, bd = Infinity;
+  (times||[]).forEach((tt,k)=>{ const d = Math.abs(tt - tUnix); if(d<bd){ bd=d; h=k; } });
+  return h;
+}
+
+// actualiza capa de color, partículas, etiqueta de nivel y leyenda para la hora del avión
+function vpMapUpdate(tUnix){
+  if(!vprofMap || !vprof) return;
+  const ct = vprof.ct, wind = vprof.wind;
+  const li = vpCurrentLevelIdx();
+  const lev = VP_WIND_LEVELS[li];
+  let url = null, bounds = null, key = '', label = '';
+  if(vprofLayer==='wind' && wind && wind.times.length){
+    const h = vpNearestFrame(wind.times, tUnix);
+    key = 'w'+h+'_'+li; url = vprofOverlayKey===key ? null : vpWindFrameUrl(wind, h, li); bounds = vpGridBounds(wind);
+    label = `Viento · ${lev} hPa · FL${String(Math.round(vpPressureAltFt(lev)/100)).padStart(3,'0')} · ${vpHourLabel(wind.times[h])}`;
+  } else if(vprofLayer==='clouds' && ct && ct.times.length){
+    const h = vpNearestFrame(ct.times, tUnix);
+    key = 'c'+h; url = vprofOverlayKey===key ? null : vpCtFrameUrl(ct, h); bounds = vpGridBounds(ct);
+    label = `Cima de nubes · ${vpHourLabel(ct.times[h])}${ct.shifted?' (previsión más cercana)':''}`;
+  }
+  if(!key){
+    if(vprofOverlay){ vprofMap.removeLayer(vprofOverlay); vprofOverlay = null; }
+    vprofOverlayKind = ''; vprofOverlayKey = '';
+  } else if(key!==vprofOverlayKey){
+    const kind = key[0];
+    if(vprofOverlay && vprofOverlayKind===kind) vprofOverlay.setUrl(url);
+    else {
+      if(vprofOverlay) vprofMap.removeLayer(vprofOverlay);
+      vprofOverlay = L.imageOverlay(url, bounds, {opacity: kind==='w' ? .82 : .92, interactive:false}).addTo(vprofMap);
+    }
+    vprofOverlayKind = kind; vprofOverlayKey = key;
+  }
+  vprofWindField = (wind && wind.times.length) ? {wind, h: vpNearestFrame(wind.times, tUnix), li} : null;
+
+  const lbl = document.getElementById('vpLevelLabel');
+  if(lbl) lbl.textContent = `${vprofLevelSel===0?'AUTO (nivel del avión) · ':''}${lev} hPa · FL${String(Math.round(vpPressureAltFt(lev)/100)).padStart(3,'0')} · ${(vpPressureAltFt(lev)*0.0003048).toFixed(1).replace('.',',')} km`;
+  const box = document.getElementById('vpLevelBox');
+  if(box) box.style.display = wind ? '' : 'none';
+  if(vprofCtCtrl){
+    const c = vprofCtCtrl.getContainer();
+    c.style.display = key ? '' : 'none';
+    c.querySelector('.vp-ct-time').textContent = label;
+    c.querySelector('.vp-ct-bar').className = 'vp-ct-bar ' + (vprofLayer==='wind' ? 'wind' : 'clouds');
+    c.querySelector('.vp-ct-labels').innerHTML = vprofLayer==='wind'
+      ? '<span>0</span><span>30</span><span>60</span><span>100</span><span>150 kt</span>'
+      : '<span>FL020</span><span>FL165</span><span>FL295</span><span>FL395</span><span>FL490</span>';
+  }
+}
+function vpHourLabel(t){ const d = new Date(t*1000); return String(d.getUTCHours()).padStart(2,'0')+':00Z'; }
+
+function setVProfLayer(l){
+  vprofLayer = l;
+  try{ localStorage.setItem('fb_vp_layer', l); }catch(e){}
+  document.querySelectorAll('#vpLayerSel button').forEach(b=>b.classList.toggle('active', b.dataset.l===l));
+  if(vprof) vpMapUpdate(vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60));
+}
+function setVProfLevel(v){
+  vprofLevelSel = +v;
+  if(vprof) vpMapUpdate(vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60));
+}
+function toggleVProfParticles(){
+  vprofParticles = !vprofParticles;
+  document.getElementById('vpPartBtn').classList.toggle('active', vprofParticles);
+  if(vpPart && !vprofParticles) vpPart.ctx.clearRect(0,0,vpPart.w,vpPart.h);
+}
+// compatibilidad con el botón anterior
+function vpCtUpdate(tUnix){ vpMapUpdate(tUnix); }
+function toggleVProfClouds(){ setVProfLayer(vprofLayer==='clouds' ? 'none' : 'clouds'); }
+
+// partículas: trazos blancos que siguen el viento del nivel y la hora elegidos
+function vpStopParticles(){
+  if(vpPart){ cancelAnimationFrame(vpPart.raf); if(vpPart.cv && vpPart.cv.parentNode) vpPart.cv.parentNode.removeChild(vpPart.cv); }
+  vpPart = null;
+}
+function vpStartParticles(){
+  vpStopParticles();
+  if(!vprofMap || !vprofMap.createPane) return;
+  const pane = vprofMap.getPane('vpPart') || vprofMap.createPane('vpPart');
+  pane.style.zIndex = 450; pane.style.pointerEvents = 'none';
+  const cv = document.createElement('canvas');
+  cv.style.position = 'absolute';
+  pane.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const st = {cv, ctx, parts:[], raf:0, moving:false, w:0, h:0};
+  const spawn = p=>{ p.x = Math.random()*st.w; p.y = Math.random()*st.h; p.age = 30 + Math.random()*70; return p; };
+  const reset = ()=>{
+    const size = vprofMap.getSize();
+    const dpr = window.devicePixelRatio || 1;
+    st.w = size.x; st.h = size.y;
+    cv.width = st.w*dpr; cv.height = st.h*dpr; cv.style.width = st.w+'px'; cv.style.height = st.h+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    L.DomUtil.setPosition(cv, vprofMap.containerPointToLayerPoint([0,0]));
+    const n = Math.round(Math.min(1600, Math.max(250, st.w*st.h/520)));
+    st.parts = Array.from({length:n}, ()=>spawn({}));
+    ctx.clearRect(0,0,st.w,st.h);
+  };
+  vprofMap.on('movestart zoomstart', ()=>{ st.moving = true; ctx.clearRect(0,0,st.w,st.h); });
+  vprofMap.on('moveend zoomend resize', ()=>{ st.moving = false; reset(); });
+  const tick = ()=>{
+    st.raf = requestAnimationFrame(tick);
+    if(st.moving || !vprofParticles || !vprofWindField || document.hidden || !vprofMap.getContainer().offsetParent) return;
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    ctx.fillRect(0,0,st.w,st.h);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    const {wind, h, li} = vprofWindField;
+    for(const p of st.parts){
+      if((p.age -= 1) <= 0){ spawn(p); continue; }
+      const ll = vprofMap.containerPointToLatLng([p.x, p.y]);
+      const uv = vpWindUV(wind, h, li, ll.lat, ll.lng);
+      if(!uv){ spawn(p); continue; }
+      const nx = p.x + uv[0]*0.035, ny = p.y - uv[1]*0.035;
+      ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny);
+      p.x = nx; p.y = ny;
+      if(nx<0 || ny<0 || nx>st.w || ny>st.h) spawn(p);
+    }
+    ctx.stroke();
+  };
+  vpPart = st;
+  reset();
+  tick();
 }
 
 async function renderVProfMap(){
@@ -7116,24 +7374,28 @@ async function renderVProfMap(){
   const ok = await ensureLeaflet();
   if(!ok){ el.style.height = 'auto'; el.innerHTML = '<p class="wx-empty" style="padding:12px 14px;margin:0">Mapa no disponible sin conexión (el perfil sí funciona).</p>'; return; }
   el.style.height = '';
+  vpStopParticles();
   if(vprofMap){ vprofMap.remove(); vprofMap = null; }
-  vprofCtOverlay = null; vprofCtFrame = -1; vprofCtUrls = {};
+  vprofOverlay = null; vprofOverlayKind = ''; vprofOverlayKey = ''; vprofCtUrls = {}; vprofWindUrls = {};
   el.innerHTML = '';
-  vprofMap = L.map(el, {attributionControl:false, zoomControl:true});
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:12}).addTo(vprofMap);
+  vprofMap = L.map(el, {attributionControl:true, zoomControl:true, preferCanvas:false});
+  if(vprofMap.attributionControl && vprofMap.attributionControl.setPrefix) vprofMap.attributionControl.setPrefix(false);
+  // mapa base oscuro sin satélite (como Windy); sin conexión se queda el fondo gris y las capas siguen viéndose
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:12, attribution:'© OpenStreetMap · © CARTO'}).addTo(vprofMap);
 
-  // leyenda + hora de la capa (abajo a la izquierda)
   vprofCtCtrl = L.control({position:'bottomleft'});
   vprofCtCtrl.onAdd = ()=>{
     const d = L.DomUtil.create('div', 'vp-ct-legend');
-    d.innerHTML = `<div class="vp-ct-time">Cima de nubes</div>
-      <div class="vp-ct-bar"></div>
-      <div class="vp-ct-labels"><span>FL020</span><span>FL165</span><span>FL295</span><span>FL395</span><span>FL490</span></div>`;
+    d.innerHTML = `<div class="vp-ct-time"></div><div class="vp-ct-bar"></div><div class="vp-ct-labels"></div>`;
     return d;
   };
   vprofCtCtrl.addTo(vprofMap);
-  if(!vprof.ct) vprofCtCtrl.getContainer().style.display = 'none';
 
+  const other = vprof===vprofMain ? vprofAltRoute : vprofMain;
+  if(other && other.wps){
+    const op = other.wps.filter(w=>w.lat!=null).map(w=>[w.lat,w.lon]);
+    if(op.length>1) L.polyline(op, {color: other.isAlt ? '#f2a900' : '#9fb0c4', weight:2, opacity:.9, dashArray:'6 6'}).addTo(vprofMap).bindTooltip(other.isAlt ? 'Desvío a '+(other.altIcao||'ALTN') : 'Ruta principal');
+  }
   const cols = vprof.cols;
   for(let i=0;i<cols.length-1;i++){
     const a = cols[i], b = cols[i+1];
@@ -7142,11 +7404,6 @@ async function renderVProfMap(){
     const type = hz.find(h=>h.type==='cb') ? 'cb' : hz.find(h=>h.type==='turb') ? 'turb' : hz.find(h=>h.type==='icing') ? 'icing' : null;
     L.polyline([[a.lat,a.lon],[b.lat,b.lon]], {color: type ? VP_HZ_COLOR[type] : '#ffffff', weight: type?5:2.5, opacity:.95}).addTo(vprofMap);
   }
-  const other = vprof===vprofMain ? vprofAltRoute : vprofMain;
-  if(other && other.wps){
-    const op = other.wps.filter(w=>w.lat!=null).map(w=>[w.lat,w.lon]);
-    if(op.length>1) L.polyline(op, {color: other.isAlt ? '#f2a900' : '#9fb0c4', weight:2, opacity:.85, dashArray:'6 6'}).addTo(vprofMap).bindTooltip(other.isAlt ? 'Desvío a '+(other.altIcao||'ALTN') : 'Ruta principal');
-  }
   (vprof.etps||[]).forEach(e=>{
     const pos = vpInterpWps(vprof.wps, e.d);
     if(pos.lat==null) return;
@@ -7154,18 +7411,18 @@ async function renderVProfMap(){
     L.marker([pos.lat,pos.lon], {icon:etpIcon, interactive:false}).addTo(vprofMap);
   });
   const dot = L.divIcon({className:'', html:'<div style="width:6px;height:6px;border-radius:50%;background:#fff;border:1.5px solid #060d1a"></div>', iconSize:[6,6]});
-  pts.forEach(w=>{ if(!w.interp) L.marker([w.lat,w.lon], {icon:dot}).addTo(vprofMap).bindTooltip(w.ident, {direction:'top', offset:[0,-4]}); });
-  // posición del avión: círculo blanco relleno
+  pts.forEach(w=>{ if(!w.interp && !/^-|^(T_O_C|T_O_D|T_OSC|B_OSD)$/.test(w.ident)) L.marker([w.lat,w.lon], {icon:dot}).addTo(vprofMap).bindTooltip(w.ident, {direction:'top', offset:[0,-4]}); });
   const planeIcon = L.divIcon({className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#ffffff;border:2px solid #060d1a;box-shadow:0 0 0 2px rgba(255,255,255,.35)"></div>', iconSize:[14,14], iconAnchor:[7,7]});
   vprofPlane = L.marker([pts[0].lat, pts[0].lon], {icon:planeIcon, interactive:false, zIndexOffset:1000}).addTo(vprofMap);
   vprofMap.fitBounds(L.latLngBounds(pts.map(w=>[w.lat,w.lon])), {padding:[20,20]});
+  document.querySelectorAll('#vpLayerSel button').forEach(b=>b.classList.toggle('active', b.dataset.l===vprofLayer));
+  vpStartParticles();
   setTimeout(()=>{ if(vprofMap){ vprofMap.invalidateSize(); vpUpdateCursor(); } }, 150);
   vprofRadarLayer = null;
   if(document.getElementById('vpRadarBtn').classList.contains('active')) addVProfRadar();
 }
 
-// Radar de precipitación (RainViewer, gratis). Es la situación de AHORA, no la prevista: no cambia
-// al mover el avión. Se puede ver a la vez que la capa de cima de nubes.
+// Radar de precipitación (RainViewer, gratis). Es la situación de AHORA, no la prevista.
 async function addVProfRadar(){
   if(!vprofMap) return;
   try{
@@ -7174,7 +7431,7 @@ async function addVProfRadar(){
     const frames = (j.radar && j.radar.past) || [];
     if(!frames.length) throw new Error('sin datos');
     const last = frames[frames.length-1];
-    vprofRadarLayer = L.tileLayer(`${j.host}${last.path}/256/{z}/{x}/{y}/2/1_1.png`, {opacity:.75, maxNativeZoom:7, maxZoom:12, zIndex:500}).addTo(vprofMap);
+    vprofRadarLayer = L.tileLayer(`${j.host}${last.path}/256/{z}/{x}/{y}/4/1_1.png`, {opacity:.95, maxNativeZoom:7, maxZoom:12, zIndex:500}).addTo(vprofMap);
   }catch(e){
     setProfileStatus('No se pudo cargar el radar (necesita conexión).', true);
     document.getElementById('vpRadarBtn').classList.remove('active');
