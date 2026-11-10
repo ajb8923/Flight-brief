@@ -579,9 +579,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 .ln-pf{display:inline-block;width:2px;height:16px;background:#6ea8ff;transform:rotate(-28deg);margin:0 1px;}
 .ln-tick{color:#6ea8ff;font-size:15px;font-weight:700;line-height:1;}
 .ln-direct-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
-.ln-a,.ln-b{display:none;color:#6ea8ff;font-weight:700;font-size:10px;}
-.ln-a{margin-left:3px;} .ln-b{margin-right:3px;}
-tr.ab-on .ln-a, tr.ab-on .ln-b{display:inline;}
+.ln-a{display:none;color:var(--amber);font-weight:700;font-size:11px;margin-left:4px;letter-spacing:0;}
+tr.ab-on .ln-a{display:inline;}
 .ln-menu{position:absolute;z-index:3000;min-width:210px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:6px;box-shadow:0 12px 30px -10px rgba(0,0,0,.7);}
 .ln-menu-title{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);padding:4px 8px 6px;}
 .ln-menu button{display:flex;justify-content:space-between;width:100%;background:none;border:none;color:var(--text);font:600 13px 'Inter',sans-serif;text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer;}
@@ -1817,8 +1816,8 @@ function renderLogNavTable(){
     <td><input class="lognav-input lognav-fl" placeholder="—" oninput="saveLogState()"></td>
     <td><select class="lognav-input lognav-select lognav-opt" onchange="saveLogState()"><option value="">—</option><option>OPT</option><option>REC</option><option>MAX</option><option>ATC</option><option>TUR</option><option>OFP</option></select></td>
     <td>${w.trm||'—'}</td><td>${w.di||'—'}</td>
-    <td class="ln-mach-td">${w.mach||'—'}<span class="ln-a">A</span></td>
-    <td class="ln-tm-td"><span class="ln-b">B</span>${w.tm||'—'}</td>
+    <td class="ln-mach-td">${w.mach||'—'}<span class="ln-a">AB</span></td>
+    <td class="ln-tm-td">${w.tm||'—'}</td>
     <td class="lognav-eto">--:--</td>
     <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
     <td><input class="lognav-input lognav-ato" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
