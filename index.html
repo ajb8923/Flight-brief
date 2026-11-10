@@ -579,7 +579,9 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 .ln-pf{display:inline-block;width:2px;height:16px;background:#6ea8ff;transform:rotate(-28deg);margin:0 1px;}
 .ln-tick{color:#6ea8ff;font-size:15px;font-weight:700;line-height:1;}
 .ln-direct-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
-.ln-a{display:none;color:var(--amber);font-weight:700;font-size:11px;margin-left:4px;letter-spacing:0;}
+.ln-mach-td{position:relative;}
+/* AB centrado justo en la separación entre MACH y TM */
+.ln-a{display:none;position:absolute;left:100%;top:50%;transform:translate(-50%,-50%);color:var(--amber);font-weight:700;font-size:11px;letter-spacing:0;white-space:nowrap;pointer-events:none;}
 tr.ab-on .ln-a{display:inline;}
 .ln-menu{position:absolute;z-index:3000;min-width:210px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:6px;box-shadow:0 12px 30px -10px rgba(0,0,0,.7);}
 .ln-menu-title{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);padding:4px 8px 6px;}
@@ -1676,7 +1678,7 @@ function switchTab(name){
 }
 
 function switchFlightTab(name){
-  setTimeout(()=>{ if(typeof drawAeaDirects==='function') drawAeaDirects(); }, 60);
+  setTimeout(()=>{ if(typeof drawAeaDirects==='function'){ drawAeaDirects(); updateAeaAB(); } }, 60);
   document.querySelectorAll('#flightTabbar .tab').forEach(t=>t.classList.toggle('active', t.dataset.ftab===name));
   document.querySelectorAll('.flight-panel').forEach(p=>p.classList.toggle('active', p.id==='flightpanel-'+name));
 }
@@ -1816,8 +1818,8 @@ function renderLogNavTable(){
     <td><input class="lognav-input lognav-fl" placeholder="—" oninput="saveLogState()"></td>
     <td><select class="lognav-input lognav-select lognav-opt" onchange="saveLogState()"><option value="">—</option><option>OPT</option><option>REC</option><option>MAX</option><option>ATC</option><option>TUR</option><option>OFP</option></select></td>
     <td>${w.trm||'—'}</td><td>${w.di||'—'}</td>
-    <td class="ln-mach-td">${w.mach||'—'}<span class="ln-a">AB</span></td>
-    <td class="ln-tm-td">${w.tm||'—'}</td>
+    <td class="ln-mach-td"><span class="ln-mv">${w.mach||'—'}</span><span class="ln-a">AB</span></td>
+    <td class="ln-tm-td"><span class="ln-tv">${w.tm||'—'}</span></td>
     <td class="lognav-eto">--:--</td>
     <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
     <td><input class="lognav-input lognav-ato" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
@@ -1852,7 +1854,7 @@ function renderAeaLog(){
   recalcLogTimes();
   recalcEto();
   updateAeaAB();
-  setTimeout(drawAeaDirects, 30);
+  setTimeout(()=>{ drawAeaDirects(); updateAeaAB(); }, 30);
 }
 
 function applyMasterDocData(parsed, ofpRef){
@@ -1980,7 +1982,17 @@ function updateAeaAB(){
       on = ['.lognav-fl','.lognav-opt','.lognav-ato','.lognav-favl','.lognav-fact'].some(sel=>{ const el = tr.querySelector(sel); return el && String(el.value||'').trim(); });
     }
     tr.classList.toggle('ab-on', on);
+    if(on) lnPlaceAB(tr);
   });
+}
+// coloca "AB" justo a mitad de camino entre el número de MACH y el de TM
+function lnPlaceAB(tr){
+  const td = tr.querySelector('.ln-mach-td'), mv = tr.querySelector('.ln-mv'), tv = tr.querySelector('.ln-tv'), ab = tr.querySelector('.ln-a');
+  if(!td || !mv || !tv || !ab) return;
+  const r = td.getBoundingClientRect();
+  if(!r.width) return; // tabla oculta: se recoloca al mostrarse
+  const mid = (mv.getBoundingClientRect().right + tv.getBoundingClientRect().left)/2;
+  ab.style.left = (mid - r.left) + 'px';
 }
 
 // línea fina vertical a la derecha de IDENT, del punto inicial al del directo, terminada en flecha
@@ -2011,7 +2023,7 @@ function drawAeaDirects(){
   });
   svg.innerHTML = out;
 }
-window.addEventListener('resize', ()=>{ if(currentAirline!=='iberia') drawAeaDirects(); });
+window.addEventListener('resize', ()=>{ if(currentAirline!=='iberia'){ drawAeaDirects(); updateAeaAB(); } });
 
 function ensureWxAirportsInit(){
   const airports = getAirportRoleList();
