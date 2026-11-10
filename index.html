@@ -569,6 +569,29 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 .iblog-rmkbox .ib-sum{display:block;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--amber);line-height:1.1;margin:2px 0 0 8px;white-space:nowrap;}
 .iblog-rmkbox .ib-sum:empty{display:none;}
 .iblog-rmkbox .iblog-rmk{width:100%;min-height:24px;border:none;background:transparent;padding:0;flex:1;}
+/* ---------- LOG Air Europa: marcas y directos ---------- */
+.ln-ident{position:relative;display:inline-flex;align-items:center;gap:3px;cursor:pointer;padding:2px 14px 2px 2px;color:var(--amber);font-weight:600;}
+.ln-ident.pending .ln-name{background:rgba(110,168,255,.18);border-radius:6px;}
+.ln-name{position:relative;display:inline-block;padding:1px 3px;}
+.ln-ident.chk .ln-name{border:1.6px solid #6ea8ff;border-radius:50%;padding:1px 8px;}
+.ln-x{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.ln-x line{stroke:#6ea8ff;stroke-width:4;vector-effect:non-scaling-stroke;stroke-width:1.6;}
+.ln-pf{display:inline-block;width:2px;height:16px;background:#6ea8ff;transform:rotate(-28deg);margin:0 1px;}
+.ln-tick{color:#6ea8ff;font-size:15px;font-weight:700;line-height:1;}
+.ln-direct-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
+.ln-a,.ln-b{display:none;color:#6ea8ff;font-weight:700;font-size:10px;}
+.ln-a{margin-left:3px;} .ln-b{margin-right:3px;}
+tr.ab-on .ln-a, tr.ab-on .ln-b{display:inline;}
+.ln-menu{position:absolute;z-index:3000;min-width:210px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:6px;box-shadow:0 12px 30px -10px rgba(0,0,0,.7);}
+.ln-menu-title{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);padding:4px 8px 6px;}
+.ln-menu button{display:flex;justify-content:space-between;width:100%;background:none;border:none;color:var(--text);font:600 13px 'Inter',sans-serif;text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer;}
+.ln-menu button:hover:not(:disabled){background:rgba(242,169,0,.12);color:var(--amber);}
+.ln-menu button:disabled{color:var(--muted);cursor:default;}
+.ln-menu button span{color:#6ea8ff;}
+.ln-menu-sep{border-top:1px solid var(--line);margin:4px 0;}
+.ln-menu .ln-menu-undo{font-weight:500;font-size:12px;color:var(--muted);}
+.ln-direct-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:2500;display:flex;gap:12px;align-items:center;background:var(--surface-2);border:1px solid #6ea8ff;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);box-shadow:0 10px 30px -10px rgba(0,0,0,.7);max-width:92vw;}
+.ln-clear-btn{color:var(--danger);border-color:rgba(229,72,77,.4);}
 /* ---------- Avisos de app sin conexión / actualización ---------- */
 .app-toast{
   position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
@@ -1418,7 +1441,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
     <div id="logContent">
       <div class="card">
-        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>Master Document</h3>
+        <div class="card-toggle-head"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>Master Document</h3>
+        <button class="card-toggle-btn ln-clear-btn" onclick="clearAeaLog()">Borrar todo el LOG</button></div>
         <p class="sub">Versión electrónica del Master Document del despacho — se rellena sola al subir el OFP en Pre-flight · Setup. Los campos en blanco son para rellenar durante el vuelo.</p>
         <div class="grid2" style="margin-top:10px">
           <div class="fuel-row"><label>CAPT</label><div class="fuel-row-inputs single"><input id="log_capt" oninput="saveLogState()"></div></div>
@@ -1452,8 +1476,9 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
 
       <div class="card">
         <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.5-2V4L9 6m0 14l6-2m-6 2V6m6 12l5.5 2V6L15 4m0 14V4m0 2L9 4"/></svg>Navigation Log</h3>
-        <p class="sub">Columnas con fondo marcan lo planificado (del OFP); ATO y ACT FUEL son para ir rellenando en vuelo.</p>
+        <p class="sub">Toca el nombre de un punto (IDENT) para DIRECT TO, WPT CHECK, FLT WPT CHECK o PF FLT WPT CHECK. Todo se guarda en el iPad al momento y se mantiene hasta que pulses "Borrar todo el LOG".</p>
         <div id="logNavTableWrap" style="overflow-x:auto;margin-top:10px">
+          <div id="logNavInner" style="position:relative;min-width:720px">
           <table class="etopsdoc-table" id="logNavTable" style="min-width:720px">
             <thead><tr>
               <th>AWY</th><th>MRA</th><th>IDENT</th><th>FL</th><th>OPT</th><th>TRM</th><th>DI</th><th>MACH</th><th>TM</th>
@@ -1462,7 +1487,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 0 8px;}
             </tr></thead>
             <tbody id="logNavTableBody"></tbody>
           </table>
+          <svg id="lnDirectSvg" class="ln-direct-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
         </div>
+        <div id="lnDirectBar" class="ln-direct-bar" style="display:none"><span></span><button class="btn btn-ghost btn-sm" onclick="cancelAeaDirect()">Cancelar</button></div>
         <p class="wx-empty" id="logNavEmpty">Sube el OFP en Pre-flight · Setup para ver aquí la navigation log.</p>
         <details style="margin-top:10px">
           <summary class="link-btn" style="cursor:pointer">Ver texto leído del Master Document (debug)</summary>
@@ -1649,6 +1677,7 @@ function switchTab(name){
 }
 
 function switchFlightTab(name){
+  setTimeout(()=>{ if(typeof drawAeaDirects==='function') drawAeaDirects(); }, 60);
   document.querySelectorAll('#flightTabbar .tab').forEach(t=>t.classList.toggle('active', t.dataset.ftab===name));
   document.querySelectorAll('.flight-panel').forEach(p=>p.classList.toggle('active', p.id==='flightpanel-'+name));
 }
@@ -1666,6 +1695,7 @@ function applyFlightTabVisibility(){
   if(empty) empty.style.display = 'none';
   switchFlightTab(ib ? 'iblog' : 'log');
   if(ib) loadIberiaLogState();
+  else { loadAeaLog(); renderAeaLog(); }
 }
 
 const LOG_FIELD_IDS = ['log_capt','log_fo','log_sn','log_atc','log_ctot','log_gate','log_fmspos','log_slop',
@@ -1673,50 +1703,61 @@ const LOG_FIELD_IDS = ['log_capt','log_fo','log_sn','log_atc','log_ctot','log_ga
 
 let masterDocWaypoints = [];
 
+// ================= LOG AIR EUROPA: guardado permanente =================
+// Todo el LOG (tabla del OFP, lo escrito, marcas y directos) se guarda en el iPad en cada cambio y se
+// recupera al abrir la app. Solo se borra con "Borrar todo el LOG" (doble confirmación) o si, al subir
+// un OFP de OTRO vuelo, el usuario acepta sustituirlo.
+const AEA_LOG_KEY = 'flightbrief_log_aea';
+let aeaLog = null;
+let aeaPendingDirect = null;
+
+function aeaLogEmpty(){ return {v:2, ofpRef:'', ofpRefLabel:'', summary:'', tripTime:'', waypoints:[], fields:{}, rows:[], marks:{}, directs:[], undo:[]}; }
+
+function aeaLogHasData(l){
+  if(!l) return false;
+  if(Object.values(l.fields||{}).some(v=>v && String(v).trim())) return true;
+  if((l.rows||[]).some(r=>r && Object.values(r).some(v=>v && String(v).trim()))) return true;
+  return Object.keys(l.marks||{}).length>0 || (l.directs||[]).length>0;
+}
+
+function persistAeaLog(){
+  if(currentAirline==='iberia' || !aeaLog) return;
+  try{ localStorage.setItem(AEA_LOG_KEY, JSON.stringify(aeaLog)); }
+  catch(e){ console.warn('No se pudo guardar el LOG:', e); if(typeof showAppToast==='function') showAppToast('⚠ No se pudo guardar el LOG en el iPad', 'update', 6000); }
+}
+
+function loadAeaLog(){
+  aeaLog = null;
+  try{
+    const raw = localStorage.getItem(AEA_LOG_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(d && d.v===2) aeaLog = Object.assign(aeaLogEmpty(), d);
+    else if(d) aeaLog = Object.assign(aeaLogEmpty(), {fields: d.fields||{}, rows: d.wpInputs||[]}); // formato antiguo
+  }catch(e){ console.warn('No se pudo leer el LOG guardado:', e); }
+}
+
+// lo que se escribe en la cabecera y en la tabla
 function saveLogState(){
   if(suppressSave || currentAirline==='iberia') return;
-  try{
-    const fields = {};
-    LOG_FIELD_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) fields[id]=el.value; });
-    const wpInputs = [...document.querySelectorAll('#logNavTableBody tr')].map(tr=>({
+  if(!aeaLog) aeaLog = aeaLogEmpty();
+  LOG_FIELD_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) aeaLog.fields[id]=el.value; });
+  const trs = [...document.querySelectorAll('#logNavTableBody tr')];
+  if(trs.length){
+    aeaLog.rows = trs.map(tr=>({
       fl: tr.querySelector('.lognav-fl').value, opt: tr.querySelector('.lognav-opt').value,
       rto: tr.querySelector('.lognav-rto').value, ato: tr.querySelector('.lognav-ato').value,
       favl: tr.querySelector('.lognav-favl').value, fact: tr.querySelector('.lognav-fact').value
     }));
-    localStorage.setItem('flightbrief_log_aea', JSON.stringify({fields, wpInputs}));
-  }catch(e){ console.warn('No se pudo guardar el LOG:', e); }
+  }
+  persistAeaLog();
+  updateAeaAB();
 }
 
-function loadLogState(){
-  try{
-    const raw = localStorage.getItem('flightbrief_log_aea');
-    if(!raw) return;
-    const data = JSON.parse(raw);
-    if(data.fields) Object.keys(data.fields).forEach(id=>setVal(id, data.fields[id]));
-    if(data.wpInputs){
-      const rows = document.querySelectorAll('#logNavTableBody tr');
-      data.wpInputs.forEach((wp,i)=>{
-        if(!rows[i]) return;
-        const flEl = rows[i].querySelector('.lognav-fl'), optEl = rows[i].querySelector('.lognav-opt');
-        const rtoEl = rows[i].querySelector('.lognav-rto'), atoEl = rows[i].querySelector('.lognav-ato');
-        const favlEl = rows[i].querySelector('.lognav-favl'), factEl = rows[i].querySelector('.lognav-fact');
-        if(flEl && wp.fl) flEl.value = wp.fl;
-        if(optEl && wp.opt) optEl.value = wp.opt;
-        if(rtoEl && wp.rto) rtoEl.value = wp.rto;
-        if(atoEl && wp.ato) atoEl.value = wp.ato;
-        if(favlEl && wp.favl) favlEl.value = wp.favl;
-        if(factEl && wp.fact) factEl.value = wp.fact;
-      });
-    }
-  }catch(e){ console.warn('No se pudo leer el LOG guardado:', e); }
-  recalcLogTimes();
-}
+function loadLogState(){ renderAeaLog(); }
 
-// ETO per point = AIRB + the running total of each point's own TM (in minutes), so the last point's
-// ETO should land on ETA (AIRB + TRIP TIME). Recalculated whenever AIRB changes.
-
+// ETO per point = AIRB + the running total of each point's own TM (in minutes).
 // BLK TIME = ON BLK − OFF BLK (gate to gate), FLT TIME = LAND − AIRB (wheels up to wheels down).
-// Handles crossing midnight (if the end time is numerically earlier than the start, assume +24h).
 function hhmmDiff(startStr, endStr){
   const s = hhmmToMin((startStr||'').trim()), e = hhmmToMin((endStr||'').trim());
   if(s==null || e==null) return null;
@@ -1729,8 +1770,6 @@ function recalcLogTimes(){
   setVal('log_blktime', blkDiff==null ? '' : minToHHMM(blkDiff));
   const fltDiff = hhmmDiff(document.getElementById('log_airb').value, document.getElementById('log_land').value);
   setVal('log_flttime', fltDiff==null ? '' : minToHHMM(fltDiff));
-
-  // ETA = AIRB + TRIP TIME (both HH:MM — TRIP TIME here is a duration, not a clock time, but adds the same way)
   const airbMin = hhmmToMin((document.getElementById('log_airb').value||'').trim());
   const tripMin = hhmmToMin((document.getElementById('log_triptime').value||'').trim());
   setVal('log_eta', (airbMin==null || tripMin==null) ? '' : minToHHMM(airbMin + tripMin));
@@ -1752,6 +1791,16 @@ function recalcEto(){
   });
 }
 
+function lnEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+function lnIdentHtml(i, w){
+  const m = (aeaLog && aeaLog.marks[i]) || {};
+  const x = m.flt ? '<svg class="ln-x" viewBox="0 0 100 40" preserveAspectRatio="none"><line x1="2" y1="3" x2="98" y2="37"/><line x1="2" y1="37" x2="98" y2="3"/></svg>' : '';
+  return `<div class="ln-ident${m.chk?' chk':''}${aeaPendingDirect===i?' pending':''}" onclick="onLnIdentTap(${i}, this)">
+    <span class="ln-name">${lnEsc(w.ident)}${x}</span>${m.pf?'<span class="ln-pf"></span>':''}${m.chk?'<span class="ln-tick">✓</span>':''}
+  </div>`;
+}
+
 function renderLogNavTable(){
   const body = document.getElementById('logNavTableBody');
   const empty = document.getElementById('logNavEmpty');
@@ -1759,14 +1808,17 @@ function renderLogNavTable(){
   if(!masterDocWaypoints.length){
     body.innerHTML = '';
     if(empty) empty.style.display = '';
+    drawAeaDirects();
     return;
   }
   if(empty) empty.style.display = 'none';
-  body.innerHTML = masterDocWaypoints.map(w=>`<tr>
-    <td>${w.awy||'—'}</td><td>${w.mra||'—'}</td><td style="color:var(--amber);font-weight:600">${w.ident}</td>
+  body.innerHTML = masterDocWaypoints.map((w,i)=>`<tr data-i="${i}">
+    <td>${w.awy||'—'}</td><td>${w.mra||'—'}</td><td class="ln-ident-td">${lnIdentHtml(i, w)}</td>
     <td><input class="lognav-input lognav-fl" placeholder="—" oninput="saveLogState()"></td>
     <td><select class="lognav-input lognav-select lognav-opt" onchange="saveLogState()"><option value="">—</option><option>OPT</option><option>REC</option><option>MAX</option><option>ATC</option><option>TUR</option><option>OFP</option></select></td>
-    <td>${w.trm||'—'}</td><td>${w.di||'—'}</td><td>${w.mach||'—'}</td><td>${w.tm||'—'}</td>
+    <td>${w.trm||'—'}</td><td>${w.di||'—'}</td>
+    <td class="ln-mach-td">${w.mach||'—'}<span class="ln-a">A</span></td>
+    <td class="ln-tm-td"><span class="ln-b">B</span>${w.tm||'—'}</td>
     <td class="lognav-eto">--:--</td>
     <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
     <td><input class="lognav-input lognav-ato" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
@@ -1778,17 +1830,189 @@ function renderLogNavTable(){
   recalcEto();
 }
 
-function applyMasterDocData(parsed, ofpRef){
-  masterDocWaypoints = parsed.waypoints;
-  setVal('log_ofpRef', ofpRef || '');
-  setVal('log_triptime', parsed.tripTime);
-  const el = document.getElementById('logRouteSummary');
-  if(el) el.textContent = [state.dep, state.arr].filter(Boolean).length
-    ? `${state.dep||'----'} → ${state.arr||'----'}  ·  STD ${state.std||'--:--'}  ·  EET ${state.eet||'--:--'}`
-    : '';
+// pinta todo el LOG guardado (cabecera, tabla, valores, marcas, directos)
+function renderAeaLog(){
+  if(currentAirline==='iberia') return;
+  if(!aeaLog) loadAeaLog();
+  const l = aeaLog || aeaLogEmpty();
+  suppressSave = true;
+  masterDocWaypoints = l.waypoints || [];
+  LOG_FIELD_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) el.value = l.fields[id]||''; });
+  setVal('log_ofpRef', l.ofpRefLabel||'');
+  setVal('log_triptime', l.tripTime||'');
+  const sumEl = document.getElementById('logRouteSummary');
+  if(sumEl) sumEl.textContent = l.summary||'';
   renderLogNavTable();
-  loadLogState();
+  const trs = document.querySelectorAll('#logNavTableBody tr');
+  (l.rows||[]).forEach((r,i)=>{
+    const tr = trs[i]; if(!tr || !r) return;
+    [['fl','.lognav-fl'],['opt','.lognav-opt'],['rto','.lognav-rto'],['ato','.lognav-ato'],['favl','.lognav-favl'],['fact','.lognav-fact']]
+      .forEach(([k,sel])=>{ const el = tr.querySelector(sel); if(el && r[k]) el.value = r[k]; });
+  });
+  suppressSave = false;
+  recalcLogTimes();
+  recalcEto();
+  updateAeaAB();
+  setTimeout(drawAeaDirects, 30);
 }
+
+function applyMasterDocData(parsed, ofpRef){
+  const key = ofpRef || [state.dep, state.arr, state.std].join('|');
+  if(!aeaLog) loadAeaLog();
+  const same = aeaLog && aeaLog.ofpRef && aeaLog.ofpRef === key;
+  if(aeaLog && !same && aeaLogHasData(aeaLog)){
+    const ok = confirm(`El LOG tiene datos de otro vuelo (${aeaLog.summary || aeaLog.ofpRefLabel || 'vuelo anterior'}).\n\n¿Sustituirlo por el LOG de este OFP nuevo?\n\nAceptar = empezar el LOG nuevo (se pierden los datos del anterior)\nCancelar = mantener el LOG actual tal cual`);
+    if(!ok){ renderAeaLog(); return; }
+    aeaLog = aeaLogEmpty();
+  } else if(!aeaLog || !same){
+    const keepOld = aeaLog && !aeaLog.ofpRef && aeaLogHasData(aeaLog); // LOG antiguo sin vuelo asociado: se conserva
+    if(!keepOld) aeaLog = aeaLogEmpty();
+  }
+  aeaLog.ofpRef = key;
+  aeaLog.ofpRefLabel = ofpRef || '';
+  aeaLog.tripTime = parsed.tripTime || '';
+  aeaLog.waypoints = parsed.waypoints || [];
+  aeaLog.summary = [state.dep, state.arr].filter(Boolean).length
+    ? `${state.dep||'----'} → ${state.arr||'----'}  ·  STD ${state.std||'--:--'}  ·  EET ${state.eet||'--:--'}` : '';
+  persistAeaLog();
+  renderAeaLog();
+}
+
+function clearAeaLog(){
+  if(!confirm('¿Borrar TODO el LOG? Se borran los datos escritos, las marcas (WPT CHECK, X, diagonales) y los directos.')) return;
+  if(!confirm('Confirma otra vez: esto no se puede deshacer.')) return;
+  const keep = aeaLog || aeaLogEmpty();
+  aeaLog = Object.assign(aeaLogEmpty(), {ofpRef:keep.ofpRef, ofpRefLabel:keep.ofpRefLabel, summary:keep.summary, tripTime:keep.tripTime, waypoints:keep.waypoints});
+  persistAeaLog();
+  renderAeaLog();
+}
+
+// ---------- Menú del IDENT: DIRECT TO / WPT CHECK / FLT WPT CHECK / PF FLT WPT CHECK ----------
+function closeLnMenu(){ const m = document.getElementById('lnMenu'); if(m) m.remove(); }
+
+function onLnIdentTap(i, el){
+  if(aeaPendingDirect!=null){
+    const from = aeaPendingDirect;
+    if(i===from){ cancelAeaDirect(); return; }
+    if(i<from){ showAppToast('Elige un punto posterior a ' + masterDocWaypoints[from].ident, 'update', 3000); return; }
+    aeaLog.directs.push({from, to:i});
+    aeaLog.undo.push({type:'direct'});
+    cancelAeaDirect(true);
+    persistAeaLog();
+    updateAeaAB();
+    drawAeaDirects();
+    return;
+  }
+  closeLnMenu();
+  const m = (aeaLog && aeaLog.marks[i]) || {};
+  const menu = document.createElement('div');
+  menu.id = 'lnMenu';
+  menu.className = 'ln-menu';
+  const item = (act, label, done)=>`<button onclick="lnAction(${i},'${act}')" ${done?'disabled':''}>${label}${done?' <span>✓</span>':''}</button>`;
+  menu.innerHTML = `<div class="ln-menu-title">${lnEsc(masterDocWaypoints[i].ident)}</div>
+    ${item('direct','DIRECT TO', false)}
+    ${item('chk','WPT CHECK', m.chk)}
+    ${item('flt','FLT WPT CHECK', m.flt)}
+    ${item('pf','PF FLT WPT CHECK', m.pf)}
+    <div class="ln-menu-sep"></div>
+    <button class="ln-menu-undo" onclick="lnUndo()" ${(aeaLog && aeaLog.undo.length)?'':'disabled'}>Deshacer última marca</button>`;
+  document.body.appendChild(menu);
+  const r = el.getBoundingClientRect();
+  const left = Math.min(window.innerWidth - 230, r.left);
+  menu.style.left = Math.max(8, left) + 'px';
+  menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+  setTimeout(()=>document.addEventListener('pointerdown', lnOutside, {once:true}), 0);
+}
+function lnOutside(ev){
+  const m = document.getElementById('lnMenu');
+  if(m && m.contains(ev.target)){ document.addEventListener('pointerdown', lnOutside, {once:true}); return; }
+  closeLnMenu();
+}
+
+function lnAction(i, act){
+  closeLnMenu();
+  if(!aeaLog) aeaLog = aeaLogEmpty();
+  if(act==='direct'){
+    aeaPendingDirect = i;
+    renderLnIdent(i);
+    const bar = document.getElementById('lnDirectBar');
+    bar.querySelector('span').textContent = `DIRECT TO desde ${masterDocWaypoints[i].ident}: toca el punto al que os dan el directo`;
+    bar.style.display = '';
+    return;
+  }
+  aeaLog.marks[i] = aeaLog.marks[i] || {};
+  if(aeaLog.marks[i][act]) return;
+  aeaLog.marks[i][act] = true;
+  aeaLog.undo.push({type:'mark', i, key:act});
+  persistAeaLog();
+  renderLnIdent(i);
+  drawAeaDirects();
+}
+function cancelAeaDirect(silent){
+  const prev = aeaPendingDirect;
+  aeaPendingDirect = null;
+  if(prev!=null) renderLnIdent(prev);
+  const bar = document.getElementById('lnDirectBar');
+  if(bar) bar.style.display = 'none';
+}
+function lnUndo(){
+  closeLnMenu();
+  if(!aeaLog || !aeaLog.undo.length) return;
+  const u = aeaLog.undo.pop();
+  if(u.type==='direct') aeaLog.directs.pop();
+  else if(u.type==='mark' && aeaLog.marks[u.i]){ delete aeaLog.marks[u.i][u.key]; if(!Object.keys(aeaLog.marks[u.i]).length) delete aeaLog.marks[u.i]; if(masterDocWaypoints[u.i]) renderLnIdent(u.i); }
+  persistAeaLog();
+  updateAeaAB();
+  drawAeaDirects();
+}
+function renderLnIdent(i){
+  const td = document.querySelector(`#logNavTableBody tr[data-i="${i}"] .ln-ident-td`);
+  if(td) td.innerHTML = lnIdentHtml(i, masterDocWaypoints[i]);
+}
+
+// "AB" (posición ABEAM) en los puntos saltados por un directo en cuanto tienen algún dato escrito
+function updateAeaAB(){
+  if(!aeaLog) return;
+  const skipped = new Set();
+  aeaLog.directs.forEach(d=>{ for(let k=d.from+1; k<d.to; k++) skipped.add(k); });
+  document.querySelectorAll('#logNavTableBody tr').forEach((tr,i)=>{
+    let on = false;
+    if(skipped.has(i)){
+      on = ['.lognav-fl','.lognav-opt','.lognav-ato','.lognav-favl','.lognav-fact'].some(sel=>{ const el = tr.querySelector(sel); return el && String(el.value||'').trim(); });
+    }
+    tr.classList.toggle('ab-on', on);
+  });
+}
+
+// línea fina vertical a la derecha de IDENT, del punto inicial al del directo, terminada en flecha
+function drawAeaDirects(){
+  const inner = document.getElementById('logNavInner');
+  const svg = document.getElementById('lnDirectSvg');
+  if(!inner || !svg) return;
+  const ds = (aeaLog && aeaLog.directs) || [];
+  const trs = document.querySelectorAll('#logNavTableBody tr');
+  svg.setAttribute('width', inner.scrollWidth);
+  svg.setAttribute('height', inner.scrollHeight);
+  if(!ds.length || !trs.length){ svg.innerHTML = ''; return; }
+  const base = inner.getBoundingClientRect();
+  const lanesEnd = [];
+  let out = '';
+  ds.forEach(d=>{
+    const a = trs[d.from], b = trs[d.to];
+    if(!a || !b) return;
+    const td = a.querySelector('.ln-ident-td');
+    const tr = td.getBoundingClientRect(), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    let lane = 0; while(lanesEnd[lane]!=null && lanesEnd[lane] > d.from) lane++;
+    lanesEnd[lane] = d.to;
+    const x = tr.right - base.left - 4 - lane*6;
+    const y1 = ra.top - base.top + 6;
+    const y2 = rb.top - base.top + rb.height/2;
+    out += `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2-1}" stroke="#6ea8ff" stroke-width="1.4"/>
+      <polyline points="${x-4},${y2-7} ${x},${y2} ${x+4},${y2-7}" fill="none" stroke="#6ea8ff" stroke-width="1.6" stroke-linejoin="round"/>`;
+  });
+  svg.innerHTML = out;
+}
+window.addEventListener('resize', ()=>{ if(currentAirline!=='iberia') drawAeaDirects(); });
 
 function ensureWxAirportsInit(){
   const airports = getAirportRoleList();
@@ -7814,6 +8038,9 @@ function closeSectionDrawer(){
 }
 
 // Things that only ever need to happen once per page load, regardless of which airline is active.
+// pide a iOS que no borre los datos de la app por falta de espacio
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+
 let appInitialized = false;
 function initAppOnce(){
   if(appInitialized) return;
