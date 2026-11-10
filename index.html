@@ -603,6 +603,13 @@ tr.ab-on .ln-a{display:inline;}
 .vp-level-label{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.06em;color:var(--text);margin-bottom:4px;}
 .vp-level input[type=range]{width:100%;accent-color:var(--amber);}
 .vp-level-ticks{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);}
+.vp-level-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px;}
+.vp-level-head .vp-level-label{margin-bottom:0;}
+.vp-level-wind{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);}
+.vp-level-wind b{color:var(--amber);font-size:14px;}
+.vp-lw-where{font-family:'Inter',sans-serif;font-size:11px;}
+.vp-lw-ct{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);}
+.vp-lw-ct b{color:#e6edf5;font-size:13px;}
 /* ---------- Avisos de app sin conexión / actualización ---------- */
 .app-toast{
   position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
@@ -762,7 +769,7 @@ tr.ab-on .ln-a{display:inline;}
       <input type="file" id="ofpFile" accept="application/pdf" onchange="handleOfpFileInput(this.files)"
         style="font-family:'Inter',sans-serif;font-size:12.5px;color:var(--muted);width:100%">
       <div id="ofpStatus" class="sub" style="margin-top:10px"></div>
-      <details open style="margin-top:10px">
+      <details style="margin-top:10px">
         <summary class="link-btn" style="cursor:pointer">Ver texto leído de la página (debug)</summary>
         <textarea readonly id="ofpDebugText" style="min-height:140px;margin-top:8px;font-size:10.5px" placeholder="Aparecerá aquí después de subir un PDF."></textarea>
       </details>
@@ -1151,7 +1158,7 @@ tr.ab-on .ln-a{display:inline;}
       <div id="vpAlerts"></div>
       <div id="vpMap" class="vp-map" style="display:none"></div>
       <div class="vp-level" id="vpLevelBox" style="display:none">
-        <div class="vp-level-label" id="vpLevelLabel"></div>
+        <div class="vp-level-head"><div class="vp-level-label" id="vpLevelLabel"></div><div class="vp-level-wind" id="vpLevelWind"></div></div>
         <input type="range" id="vpLevelRange" min="0" max="5" step="1" value="0" oninput="setVProfLevel(this.value)">
         <div class="vp-level-ticks"><span>AUTO</span><span>FL100</span><span>FL180</span><span>FL300</span><span>FL340</span><span>FL390</span></div>
       </div>
@@ -6837,19 +6844,6 @@ function renderVProf(){
     s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top+plotH}" y2="${top+plotH+4}" stroke="#6b8099"/><text x="${x.toFixed(1)}" y="${top+plotH+15}" text-anchor="middle" font-size="9" fill="#8fa3ba" font-family="JetBrains Mono,monospace">${d} NM</text>`;
   }
 
-  // ETP (puntos de igual tiempo del OFP)
-  let etpLastEnd = [-999, -999];
-  (p.etps||[]).forEach(e=>{
-    const x = X(e.d);
-    const halfW = e.label.length*2.9+6;
-    const lane = (x-halfW) > etpLastEnd[0] + 2 ? 0 : 1;   // si se solapa con la anterior, una fila más abajo
-    etpLastEnd[lane] = x + halfW;
-    const ly = lane*17;
-    s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${top}" y2="${top+plotH}" stroke="${e.color||'#4fd1c5'}" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>
-      <rect x="${(x-halfW).toFixed(1)}" y="${top+3+ly}" width="${(halfW*2).toFixed(1)}" height="14" rx="3" fill="#060d1a" stroke="${e.color||'#4fd1c5'}" stroke-width=".8"/>
-      <text x="${x.toFixed(1)}" y="${top+13+ly}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${e.color||'#4fd1c5'}" font-family="JetBrains Mono,monospace">${vpEsc(e.label)}</text>`;
-  });
-
   // origen a la izquierda, destino a la derecha
   const endLabel = (x, txt, anchor)=>{
     const w = txt.length*7.4 + 10, rx = anchor==='start' ? x : x - w;
@@ -6893,6 +6887,7 @@ function vpOfpWindHtml(d){
 }
 
 function vpUpdateCursor(){
+  vprofWindProbe = null;
   if(!vprof || !vprof._X) return;
   const d = vprofCursorD, ft = vprofAltFn(d);
   const x = vprof._X(d), y = vprof._Y(ft);
@@ -7275,6 +7270,11 @@ function vpMapUpdate(tUnix){
 
   const lbl = document.getElementById('vpLevelLabel');
   if(lbl) lbl.textContent = `${vprofLevelSel===0?'AUTO (nivel del avión) · ':''}${lev} hPa · FL${String(Math.round(vpPressureAltFt(lev)/100)).padStart(3,'0')} · ${(vpPressureAltFt(lev)*0.0003048).toFixed(1).replace('.',',')} km`;
+  // viento en la posición del avión, salvo que se esté tocando/pasando el cursor por el mapa
+  if(!vprofWindProbe){
+    const pos = vpInterpWps(vprof.wps, vprofCursorD);
+    vpShowWindAt(pos.lat, pos.lon, 'en el avión');
+  } else vpShowWindAt(vprofWindProbe.lat, vprofWindProbe.lng, 'en el punto');
   const box = document.getElementById('vpLevelBox');
   if(box) box.style.display = wind ? '' : 'none';
   if(vprofCtCtrl){
@@ -7286,6 +7286,42 @@ function vpMapUpdate(tUnix){
       ? '<span>0</span><span>30</span><span>60</span><span>100</span><span>150 kt</span>'
       : '<span>FL020</span><span>FL165</span><span>FL295</span><span>FL395</span><span>FL490</span>';
   }
+}
+let vprofWindProbe = null;
+// cima de nubes (pies) en un punto, en la hora de la capa
+function vpCloudTopFtAt(lat, lon){
+  const ct = vprof && vprof.ct;
+  if(!ct || !ct.times || !ct.times.length) return undefined;
+  const tUnix = vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60);
+  const h = vpNearestFrame(ct.times, tUnix);
+  const gi = (lat-ct.lat0)/ct.step, gj = (lon-ct.lon0)/ct.step;
+  const i0 = Math.floor(gi), j0 = Math.floor(gj), fi = gi-i0, fj = gj-j0;
+  let sum = 0, ws = 0;
+  [[i0,j0,(1-fi)*(1-fj)],[i0+1,j0,fi*(1-fj)],[i0,j0+1,(1-fi)*fj],[i0+1,j0+1,fi*fj]].forEach(([i,j,w])=>{
+    if(w<=0 || i<0 || j<0 || i>=ct.nLat || j>=ct.nLon) return;
+    const c = ct.cells[i*ct.nLon+j]; if(!c) return;
+    const v = c[h]; sum += (v<0 ? 0 : v*100)*w; ws += w;
+  });
+  if(ws<0.3) return undefined;
+  const m = sum/ws;
+  return m<500 ? null : Math.round(m*3.2808/500)*500;   // null = sin nubes significativas
+}
+function vpShowWindAt(lat, lon, where){
+  const el = document.getElementById('vpLevelWind');
+  if(!el) return;
+  if(lat==null){ el.innerHTML = ''; return; }
+  const parts = [];
+  if(vprofWindField){
+    const uv = vpWindUV(vprofWindField.wind, vprofWindField.h, vprofWindField.li, lat, lon);
+    if(uv){
+      const kt = Math.round(Math.hypot(uv[0], uv[1]));
+      const dir = Math.round(((Math.atan2(-uv[0], -uv[1])*180/Math.PI + 360) % 360)/10)*10 || 360;
+      parts.push(`<b>${String(dir).padStart(3,'0')}° / ${kt} kt</b>`);
+    }
+  }
+  const top = vpCloudTopFtAt(lat, lon);
+  if(top!==undefined) parts.push(top===null ? '<span class="vp-lw-ct">sin nubes</span>' : `<span class="vp-lw-ct">cima nubes <b>${top.toLocaleString('es-ES')} ft</b></span>`);
+  el.innerHTML = parts.length ? `<span class="vp-lw-where">${where}</span> ${parts.join(' · ')}` : '';
 }
 function vpHourLabel(t){ const d = new Date(t*1000); return String(d.getUTCHours()).padStart(2,'0')+':00Z'; }
 
@@ -7323,7 +7359,7 @@ function vpStartParticles(){
   pane.appendChild(cv);
   const ctx = cv.getContext('2d');
   const st = {cv, ctx, parts:[], raf:0, moving:false, w:0, h:0};
-  const spawn = p=>{ p.x = Math.random()*st.w; p.y = Math.random()*st.h; p.age = 30 + Math.random()*70; return p; };
+  const spawn = p=>{ p.x = Math.random()*st.w; p.y = Math.random()*st.h; p.age = 60 + Math.random()*120; return p; };
   const reset = ()=>{
     const size = vprofMap.getSize();
     const dpr = window.devicePixelRatio || 1;
@@ -7341,7 +7377,7 @@ function vpStartParticles(){
     st.raf = requestAnimationFrame(tick);
     if(st.moving || !vprofParticles || !vprofWindField || document.hidden || !vprofMap.getContainer().offsetParent) return;
     ctx.globalCompositeOperation = 'destination-in';
-    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    ctx.fillStyle = 'rgba(0,0,0,0.94)';
     ctx.fillRect(0,0,st.w,st.h);
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = 'rgba(255,255,255,0.85)';
@@ -7353,7 +7389,7 @@ function vpStartParticles(){
       const ll = vprofMap.containerPointToLatLng([p.x, p.y]);
       const uv = vpWindUV(wind, h, li, ll.lat, ll.lng);
       if(!uv){ spawn(p); continue; }
-      const nx = p.x + uv[0]*0.035, ny = p.y - uv[1]*0.035;
+      const nx = p.x + uv[0]*0.012, ny = p.y - uv[1]*0.012;
       ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny);
       p.x = nx; p.y = ny;
       if(nx<0 || ny<0 || nx>st.w || ny>st.h) spawn(p);
@@ -7422,6 +7458,11 @@ async function renderVProfMap(){
   vprofMap.fitBounds(L.latLngBounds(pts.map(w=>[w.lat,w.lon])), {padding:[20,20]});
   document.querySelectorAll('#vpLayerSel button').forEach(b=>b.classList.toggle('active', b.dataset.l===vprofLayer));
   vpStartParticles();
+  vprofWindProbe = null;
+  const probe = e=>{ vprofWindProbe = e.latlng; vpShowWindAt(e.latlng.lat, e.latlng.lng, 'en el punto'); };
+  vprofMap.on('mousemove', probe);
+  vprofMap.on('click', probe);
+  vprofMap.on('mouseout', ()=>{ vprofWindProbe = null; if(vprof) vpMapUpdate(vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60)); });
   setTimeout(()=>{ if(vprofMap){ vprofMap.invalidateSize(); vpUpdateCursor(); } }, 150);
   vprofRadarLayer = null;
   if(document.getElementById('vpRadarBtn').classList.contains('active')) addVProfRadar();
