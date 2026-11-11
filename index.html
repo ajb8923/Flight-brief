@@ -844,9 +844,13 @@ body.vp-no-scroll{overflow:hidden;}
         <div class="fuel-row"><label>A/C</label><div class="fuel-row-inputs single"><input id="ib_acType" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>DATE</label><div class="fuel-row-inputs single"><input id="ib_date" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>CI</label><div class="fuel-row-inputs single"><input id="ib_ci" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>PLAN</label><div class="fuel-row-inputs single"><input id="ib_plan" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>MAX.WS</label><div class="fuel-row-inputs single"><input id="ib_maxws" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>AVG.WC</label><div class="fuel-row-inputs single"><input id="ib_avgwc" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>TIME</label><div class="fuel-row-inputs single"><input id="ib_time" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row" style="grid-column:1/-1"><label>DST</label><div class="fuel-row-inputs single"><input id="ib_dst" oninput="onSetupChange()"></div></div>
         <div class="fuel-row-divider"></div>
-        <div class="fuel-row"><label>T/O ALTN</label><div class="fuel-row-inputs single"><input id="ib_tofAltn" placeholder="NIL" oninput="onSetupChange()"></div></div>
-        <div class="fuel-row"><label>DIST</label><div class="fuel-row-inputs single"><input id="ib_dist" placeholder="420NM" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row" style="grid-column:1/-1"><label>T/O ALTN</label><div class="fuel-row-inputs single"><input id="ib_tofAltn" placeholder="NIL" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>DEP RWY</label><div class="fuel-row-inputs single"><input id="ib_depRwy" placeholder="36L" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>SID</label><div class="fuel-row-inputs single"><input id="ib_sid" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>ARR RWY</label><div class="fuel-row-inputs single"><input id="ib_arrRwy" placeholder="25R" oninput="onSetupChange()"></div></div>
@@ -1268,7 +1272,7 @@ body.vp-no-scroll{overflow:hidden;}
 
       <div id="ftlSplitBlock" style="display:none;margin-top:12px;">
         <div class="ftl-grid">
-          <div class="field"><label>Descanso parcial en tierra (HH:MM)</label><input type="text" id="ftlSplitBreak" placeholder="03:30" oninput="calcFtl()"></div>
+          <div class="field"><label>Descanso parcial en tierra (HH:MM)</label><input type="text" id="ftlSplitBreak" inputmode="numeric" maxlength="5" placeholder="03:30" oninput="autoColon(this);calcFtl()"></div>
         </div>
         <div class="ftl-result" style="margin-top:10px">
           <div>
@@ -1328,7 +1332,7 @@ body.vp-no-scroll{overflow:hidden;}
             <option value="away">Fuera de base</option>
           </select>
         </div>
-        <div class="field"><label>Actividad anterior (HH:MM)</label><input type="text" id="restPrevDuty" placeholder="10:30" oninput="calcRest()"></div>
+        <div class="field"><label>Actividad anterior (HH:MM)</label><input type="text" id="restPrevDuty" inputmode="numeric" maxlength="5" placeholder="10:30" oninput="autoColon(this);calcRest()"></div>
       </div>
 
       <div class="toggle-row" style="margin-top:14px;">
@@ -3654,6 +3658,21 @@ function splitIberiaNotamEntries(blockText){
   return parts;
 }
 
+// NOTAM que no se resaltan en Iberia (A320, envergadura < 36 m): pasan a "Ver el resto"
+function ibNotamNotRelevant(raw){
+  const t = raw.toUpperCase().replace(/\s+/g,' ');
+  // obstáculos, árboles y grúas, salvo que cambien alguna OCA/OCH
+  if(/\b(OBST|OBSTACLES?|TREES?|CRANES?)\b/.test(t) && !/\bOC[AH]\b/.test(t)) return true;
+  // rodaduras restringidas solo a aviones de más de 36 m de envergadura
+  if(/\b(TWY|TAXIWAYS?|TAXILANES?|APRON|STAND)\b/.test(t) && /WING\s?SPAN|\bWS\b/.test(t)){
+    const big = t.match(/WING\s?SPAN[^0-9]{0,40}?(MORE THAN|GREATER THAN|ABOVE|OVER|EXCEEDING|LARGER THAN|>=?|EQUAL OR GREATER THAN|AND ABOVE)\s*(\d+(?:[.,]\d+)?)\s*M/);
+    if(big && parseFloat(big[2].replace(',','.')) >= 36) return true;
+    const big2 = t.match(/(\d+(?:[.,]\d+)?)\s*M\s*(OR|AND)\s*(MORE|ABOVE|GREATER|LARGER)/);
+    if(big2 && /WING\s?SPAN/.test(t) && parseFloat(big2[1].replace(',','.')) >= 36) return true;
+  }
+  return false;
+}
+
 function buildIberiaNotamMap(text, airports){
   const map = {};
   const t = '\n' + text;
@@ -3661,7 +3680,7 @@ function buildIberiaNotamMap(text, airports){
     const block = extractIberiaAirportBlock(t, entry.code);
     if(block==null) return;
     const entries = splitIberiaNotamEntries(block).filter(e=>e.length>3);
-    map[entry.code] = entries.map(raw=>({raw, important: NOTAM_KEY_PATTERNS.some(re=>re.test(raw))}));
+    map[entry.code] = entries.map(raw=>({raw, important: NOTAM_KEY_PATTERNS.some(re=>re.test(raw)) && !ibNotamNotRelevant(raw)}));
   });
   return map;
 }
@@ -8179,8 +8198,11 @@ function parseIberiaOfpText(text){
   if(m) out.flightLevels = m[0];
 
   // the fuel/time table (TIME, DST, ALT rows) has spaces around the decimal point: "01 . 53"
-  m = t.match(/MACH\s+AREA\s+CI\s+FLIGHT\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/);
-  if(m){ out.eet = m[1]+'.'+m[2]; out.dist = m[3]; }
+  // fila "MACH AREA CI FLIGHT  M40  03  394  H16  02.00  788": AVG.OAT, MAX.WS, AVG.GS, AVG.WC, TIME, DST
+  m = t.match(/MACH\s+AREA\s+CI\s+FLIGHT\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d{2})\s*\.\s*(\d{2})\s+(\d+)/);
+  if(m){ out.maxWs = m[2]; out.avgWc = m[4]; out.eet = m[5]+'.'+m[6]; out.dist = m[7]; }
+  m = t.match(/OPERATIONAL\s+FLIGHT\s*-\s*PLAN\s+(\d{1,3})/);
+  if(m) out.plan = m[1];
 
   m = t.match(/\bALT\s+([A-Z]{4})\s+\d{2}\s*\.\s*\d{2}/);
   if(m) out.alt = m[1];
@@ -8205,7 +8227,11 @@ function applyIberiaOfpData(data){
   setVal('ib_acType', data.acType);
   setVal('ib_date', data.date);
   setVal('ib_ci', data.ci);
-  setVal('ib_dist', data.dist);
+  setVal('ib_dst', data.dist);
+  setVal('ib_plan', data.plan);
+  setVal('ib_maxws', data.maxWs);
+  setVal('ib_avgwc', data.avgWc);
+  setVal('ib_time', data.eet);
   setVal('ib_depRwy', data.depRwy);
   setVal('ib_sid', data.sid);
   setVal('ib_arrRwy', data.arrRwy);
