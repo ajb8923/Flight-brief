@@ -627,6 +627,11 @@ tr.ab-on .ln-a{display:inline;}
 .vp-map-wrap.vp-full .vp-level{margin-top:0;}
 body.vp-no-scroll{overflow:hidden;}
 #vpTimeRange{width:100%;accent-color:#ffffff;}
+.ib-wpt-td{position:relative;padding-right:22px !important;}
+.ib-ident-tap{cursor:pointer;border-radius:5px;padding:1px 3px;margin-left:-3px;}
+.ib-ident-tap.pending{background:rgba(110,168,255,.22);}
+.ib-dseg{position:absolute;width:1.5px;background:#6ea8ff;pointer-events:none;}
+.ib-darrow{position:absolute;top:9px;width:7px;height:7px;border-right:1.6px solid #6ea8ff;border-bottom:1.6px solid #6ea8ff;transform:rotate(45deg);pointer-events:none;}
 /* ---------- Avisos de app sin conexión / actualización ---------- */
 .app-toast{
   position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
@@ -848,9 +853,9 @@ body.vp-no-scroll{overflow:hidden;}
         <div class="fuel-row"><label>MAX.WS</label><div class="fuel-row-inputs single"><input id="ib_maxws" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>AVG.WC</label><div class="fuel-row-inputs single"><input id="ib_avgwc" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>TIME</label><div class="fuel-row-inputs single"><input id="ib_time" oninput="onSetupChange()"></div></div>
-        <div class="fuel-row" style="grid-column:1/-1"><label>DST</label><div class="fuel-row-inputs single"><input id="ib_dst" oninput="onSetupChange()"></div></div>
         <div class="fuel-row-divider"></div>
-        <div class="fuel-row" style="grid-column:1/-1"><label>T/O ALTN</label><div class="fuel-row-inputs single"><input id="ib_tofAltn" placeholder="NIL" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>T/O ALTN</label><div class="fuel-row-inputs single"><input id="ib_tofAltn" placeholder="NIL" oninput="onSetupChange()"></div></div>
+        <div class="fuel-row"><label>DST</label><div class="fuel-row-inputs single"><input id="ib_dst" placeholder="420" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>DEP RWY</label><div class="fuel-row-inputs single"><input id="ib_depRwy" placeholder="36L" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>SID</label><div class="fuel-row-inputs single"><input id="ib_sid" oninput="onSetupChange()"></div></div>
         <div class="fuel-row"><label>ARR RWY</label><div class="fuel-row-inputs single"><input id="ib_arrRwy" placeholder="25R" oninput="onSetupChange()"></div></div>
@@ -1576,6 +1581,7 @@ body.vp-no-scroll{overflow:hidden;}
         </tr></thead><tbody id="ibLogBody"></tbody></table>
       </div>
       <p class="wx-empty" id="ibLogEmpty">Sube los PDF del despacho en Pre-flight · Setup para ver aquí la navigation log.</p>
+      <div id="ibDirectBar" class="ln-direct-bar" style="display:none"><span></span><button class="btn btn-ghost btn-sm" onclick="ibCancelDirect()">Cancelar</button></div>
     </div>
   </section>
 </div>
@@ -7853,7 +7859,8 @@ async function extractIberiaNavLog(pdf, arrIcao){
   return rows;
 }
 const IB_LOG_KEY = 'flightbrief_log_iberia';
-let ibLog = { ofpKey:'', offblk:'', tot:'', onblk:'', land:'', rows:[], inputs:{} };
+let ibLog = { ofpKey:'', offblk:'', tot:'', onblk:'', land:'', rows:[], inputs:{}, directs:[] };
+let ibPendingDirect = null;
 
 function ibEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
@@ -7882,13 +7889,14 @@ function saveIberiaLog(){
 function loadIberiaLogState(){
   try{
     const raw = localStorage.getItem(IB_LOG_KEY);
-    if(raw) ibLog = Object.assign({ofpKey:'', offblk:'', tot:'', onblk:'', land:'', rows:[], inputs:{}}, JSON.parse(raw));
+    if(raw) ibLog = Object.assign({ofpKey:'', offblk:'', tot:'', onblk:'', land:'', rows:[], inputs:{}, directs:[]}, JSON.parse(raw));
+    if(!Array.isArray(ibLog.directs)) ibLog.directs = [];
   }catch(e){ console.warn('No se pudo leer el LOG Iberia:', e); }
   renderIberiaLog();
 }
 // mismo OFP subido otra vez -> conserva lo ya rellenado; OFP distinto -> log en blanco
 function applyIberiaNavLog(rows, ofpKey){
-  if(ibLog.ofpKey !== ofpKey) ibLog = { ofpKey, offblk:'', tot:'', onblk:'', land:'', rows, inputs:{} };
+  if(ibLog.ofpKey !== ofpKey) ibLog = { ofpKey, offblk:'', tot:'', onblk:'', land:'', rows, inputs:{}, directs:[] };
   else ibLog.rows = rows;
   saveIberiaLog();
   renderIberiaLog();
@@ -7957,6 +7965,76 @@ function recalcIberiaEto(){
   saveIberiaLog();
 }
 
+// ---------- DIRECT TO en el LOG de Iberia (línea con flecha en la columna WPT/FREQ) ----------
+// La línea se dibuja por tramos dentro de la propia columna WPT (que queda fija al desplazar la tabla),
+// así siempre va alineada con los puntos.
+function ibDirectLanes(){
+  const lanesEnd = [], out = [];
+  (ibLog.directs||[]).forEach(d=>{
+    let lane = 0; while(lanesEnd[lane]!=null && lanesEnd[lane] > d.from) lane++;
+    lanesEnd[lane] = d.to;
+    out.push({from:d.from, to:d.to, lane});
+  });
+  return out;
+}
+function ibDirectSegs(i){
+  let html = '';
+  ibDirectLanes().forEach(d=>{
+    if(i<d.from || i>d.to) return;
+    const right = 4 + d.lane*6;
+    if(i===d.from) html += `<span class="ib-dseg" style="right:${right}px;top:8px;bottom:0"></span>`;
+    else if(i===d.to) html += `<span class="ib-dseg" style="right:${right}px;top:0;height:16px"></span><span class="ib-darrow" style="right:${right-3}px"></span>`;
+    else html += `<span class="ib-dseg" style="right:${right}px;top:0;bottom:0"></span>`;
+  });
+  return html;
+}
+function onIbIdentTap(i, el){
+  if(ibPendingDirect!=null){
+    const from = ibPendingDirect;
+    if(i===from){ ibCancelDirect(); return; }
+    if(i<from){ showAppToast('Elige un punto posterior a ' + ibLog.rows[from].ident, 'update', 3000); return; }
+    ibLog.directs.push({from, to:i});
+    ibPendingDirect = null;
+    document.getElementById('ibDirectBar').style.display = 'none';
+    saveIberiaLog();
+    renderIberiaLog();
+    return;
+  }
+  closeLnMenu();
+  const menu = document.createElement('div');
+  menu.id = 'lnMenu';
+  menu.className = 'ln-menu';
+  menu.innerHTML = `<div class="ln-menu-title">${ibEsc(ibLog.rows[i].ident)}</div>
+    <button onclick="ibStartDirect(${i})">DIRECT TO</button>
+    <div class="ln-menu-sep"></div>
+    <button class="ln-menu-undo" onclick="ibUndoDirect()" ${(ibLog.directs||[]).length?'':'disabled'}>Deshacer último directo</button>`;
+  document.body.appendChild(menu);
+  const r = el.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(window.innerWidth - 230, r.left)) + 'px';
+  menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+  setTimeout(()=>document.addEventListener('pointerdown', lnOutside, {once:true}), 0);
+}
+function ibStartDirect(i){
+  closeLnMenu();
+  ibPendingDirect = i;
+  const bar = document.getElementById('ibDirectBar');
+  bar.querySelector('span').textContent = `DIRECT TO desde ${ibLog.rows[i].ident}: toca el punto al que os dan el directo`;
+  bar.style.display = '';
+  renderIberiaLog();
+}
+function ibCancelDirect(){
+  ibPendingDirect = null;
+  const bar = document.getElementById('ibDirectBar'); if(bar) bar.style.display = 'none';
+  renderIberiaLog();
+}
+function ibUndoDirect(){
+  closeLnMenu();
+  if(!(ibLog.directs||[]).length) return;
+  ibLog.directs.pop();
+  saveIberiaLog();
+  renderIberiaLog();
+}
+
 function renderIberiaLog(){
   const body = document.getElementById('ibLogBody');
   const wrap = document.getElementById('ibLogTableWrap');
@@ -7987,7 +8065,7 @@ function renderIberiaLog(){
   body.innerHTML = ibLog.rows.map((r,i)=>{
     const rmk = (ibLog.inputs[i] && ibLog.inputs[i].rmk!=null) ? ibLog.inputs[i].rmk : (r.rmk||'');
     return `<tr>
-      <td>${v(r.ident,'iblog-ident')}${v(r.freq,'v2')}</td>
+      <td class="ib-wpt-td"><span class="v iblog-ident ib-ident-tap${ibPendingDirect===i?' pending':''}" onclick="onIbIdentTap(${i}, this)">${ibEsc(r.ident)||'&nbsp;'}</span>${v(r.freq,'v2')}${ibDirectSegs(i)}</td>
       ${show(r.lat, r.lon)}
       ${show(r.trk, r.ws)}
       ${fill(r.fl, r.mora, i, 'fl')}
