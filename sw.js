@@ -2,13 +2,14 @@
 // No hace falta tocar este archivo al actualizar: basta con subir el index.html nuevo.
 // La app se abre siempre desde la copia guardada; con internet, comprueba en segundo plano si hay
 // un index.html nuevo en GitHub y, si lo hay, lo guarda y avisa ("Nueva versión disponible").
-const CACHE = 'flightbrief-v2';
+const CACHE = 'flightbrief-v3';
+const TILE_CACHE = 'flightbrief-tiles-v1'; // fondo de los mapas: se conserva entre versiones
 const INDEX = './index.html';
 const MARKER = 'FLIGHTBRIEF-APP'; // solo se acepta como actualización un index.html que contenga esto
 const LOCAL = ['./index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
 const FONTS_CSS = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap';
-const CACHEABLE_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const CACHEABLE_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'raw.githubusercontent.com'];
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -33,7 +34,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => k !== CACHE && k !== TILE_CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -80,7 +81,22 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Lo de fuera de la app (proxies de meteo/perfil, mapas, base de waypoints) va siempre por la red.
+  // Teselas del fondo de los mapas (Esri): primero las guardadas; si no están, se descargan y se guardan.
+  if (url.hostname === 'server.arcgisonline.com') {
+    event.respondWith((async () => {
+      const c = await caches.open(TILE_CACHE);
+      const hit = await c.match(req.url);
+      if (hit) return hit;
+      try {
+        const r = await fetch(req);
+        if (r.ok || r.type === 'opaque') c.put(req.url, r.clone());
+        return r;
+      } catch (e) { return new Response('', { status: 504 }); }
+    })());
+    return;
+  }
+
+  // Lo de fuera de la app (proxies de meteo/perfil, radar, Open-Meteo) va siempre por la red.
   const cacheable = url.origin === location.origin || CACHEABLE_HOSTS.includes(url.hostname);
   if (!cacheable) return;
 

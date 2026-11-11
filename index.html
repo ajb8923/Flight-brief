@@ -610,6 +610,23 @@ tr.ab-on .ln-a{display:inline;}
 .vp-lw-where{font-family:'Inter',sans-serif;font-size:11px;}
 .vp-lw-ct{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);}
 .vp-lw-ct b{color:#e6edf5;font-size:13px;}
+#confirmSetupBtn.confirmed{background:var(--ok);color:#06210f;}
+#confirmSetupBtn.confirmed:hover{background:#4fe0a0;}
+.qrh-limits{margin-top:14px;border:1px solid rgba(242,169,0,.35);background:rgba(242,169,0,.05);border-radius:11px;padding:10px 12px;}
+.qrh-limits-title{font-size:12px;font-weight:700;color:var(--amber);}
+.qrh-limits .ftl-result{margin-top:6px;padding-top:8px;}
+.vp-map-wrap{position:relative;}
+.vp-map-holder{position:relative;}
+.vp-full-head{display:none;}
+.vp-expand-btn{position:absolute;top:10px;right:10px;z-index:1000;background:rgba(6,13,26,.85);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:7px 11px;font:600 12px 'Inter',sans-serif;cursor:pointer;}
+.vp-expand-btn:hover{border-color:var(--amber);color:var(--amber);}
+.vp-map-wrap.vp-full{position:fixed;inset:0;z-index:5000;background:var(--bg);padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;flex-direction:column;gap:6px;}
+.vp-map-wrap.vp-full .vp-full-head{display:flex;gap:8px;align-items:center;}
+.vp-map-wrap.vp-full .vp-map-holder{flex:1;min-height:0;}
+.vp-map-wrap.vp-full .vp-map{height:100% !important;margin-top:0;}
+.vp-map-wrap.vp-full .vp-level{margin-top:0;}
+body.vp-no-scroll{overflow:hidden;}
+#vpTimeRange{width:100%;accent-color:#ffffff;}
 /* ---------- Avisos de app sin conexión / actualización ---------- */
 .app-toast{
   position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
@@ -881,9 +898,9 @@ tr.ab-on .ln-a{display:inline;}
       <p class="sub" style="margin-top:10px;margin-bottom:0;">Se rellena sola al subir el OFP en Setup.</p>
     </div>
 
-    <button class="btn btn-primary" style="width:100%" onclick="confirmSetup()">
+    <button class="btn btn-primary" id="confirmSetupBtn" style="width:100%" onclick="confirmSetup()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-      Confirmar setup y continuar
+      <span>Confirmar setup y continuar</span>
     </button>
   </section>
 
@@ -965,31 +982,31 @@ tr.ab-on .ln-a{display:inline;}
       <div class="fuel-cols">
         <div class="fuel-col">
           <div class="fuel-col-title">FUEL · TIME</div>
-          <div class="fuel-row"><label>Trip</label><div class="fuel-row-inputs"><input id="fuelL_trip_kg" type="number" placeholder="66088" oninput="calcFuel()"><input id="fuelL_trip_t" type="text" placeholder="11.46" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Cont 20 min</label><div class="fuel-row-inputs"><input id="fuelL_cont_kg" type="number" placeholder="1871" oninput="calcFuel()"><input id="fuelL_cont_t" type="text" placeholder="00.20" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Altn</label><div class="fuel-row-inputs"><input id="fuelL_altn_kg" type="number" placeholder="4836" oninput="calcFuel()"><input id="fuelL_altn_t" type="text" placeholder="00.57" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Final res</label><div class="fuel-row-inputs"><input id="fuelL_finalres_kg" type="number" placeholder="2202" oninput="calcFuel()"><input id="fuelL_finalres_t" type="text" placeholder="00.30" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Trip</label><div class="fuel-row-inputs"><input id="fuelL_trip_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_trip_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Cont 20 min</label><div class="fuel-row-inputs"><input id="fuelL_cont_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_cont_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Altn</label><div class="fuel-row-inputs"><input id="fuelL_altn_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_altn_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Final res</label><div class="fuel-row-inputs"><input id="fuelL_finalres_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_finalres_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
           <div class="fuel-row"><label>ETOPS add fuel</label><div class="fuel-row-inputs"><input id="fuelL_etops_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_etops_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Add WXX</label><div class="fuel-row-inputs"><input id="fuelL_wxx_kg" type="number" placeholder="734" oninput="calcFuel()"><input id="fuelL_wxx_t" type="text" placeholder="00.08" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Add WXX</label><div class="fuel-row-inputs"><input id="fuelL_wxx_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_wxx_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
           <div class="fuel-row"><label>Add ATC</label><div class="fuel-row-inputs"><input id="fuelL_atc_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_atc_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
           <div class="fuel-row"><label>Add OPN</label><div class="fuel-row-inputs"><input id="fuelL_opn_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_opn_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Plan T/O fuel</label><div class="fuel-row-inputs"><input id="fuelL_planto_kg" type="number" placeholder="75731" oninput="calcFuel()"><input id="fuelL_planto_t" type="text" placeholder="13.41" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Taxy out</label><div class="fuel-row-inputs"><input id="fuelL_taxy_kg" type="number" placeholder="534" oninput="calcFuel()"><input id="fuelL_taxy_t" type="text" placeholder="00.24" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Plan T/O fuel</label><div class="fuel-row-inputs"><input id="fuelL_planto_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_planto_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Taxy out</label><div class="fuel-row-inputs"><input id="fuelL_taxy_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_taxy_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
           <div class="fuel-row"><label>Discretionary</label><div class="fuel-row-inputs"><input id="fuelL_discret_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_discret_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Total fuel</label><div class="fuel-row-inputs"><input id="fuelL_total_kg" type="number" placeholder="76265" oninput="calcFuel()"><input id="fuelL_total_t" type="text" placeholder="13.41" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Total fuel</label><div class="fuel-row-inputs"><input id="fuelL_total_kg" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelL_total_t" type="text" placeholder="00.00" oninput="calcFuel()"></div></div>
         </div>
 
         <div class="fuel-col">
           <div class="fuel-col-title">WEIGHT PLAN</div>
-          <div class="fuel-row"><label>Min div</label><div class="fuel-row-inputs single"><input id="fuelR_minDiv" type="number" placeholder="7038" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Dom</label><div class="fuel-row-inputs single"><input id="fuelR_dom" type="number" placeholder="126038" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Payload</label><div class="fuel-row-inputs single"><input id="fuelR_payload" type="number" placeholder="32301" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Zfm</label><div class="fuel-row-inputs eq"><input id="fuelR_zfm" type="number" placeholder="158339" oninput="calcFuel()"><input id="fuelR_zfmMax" type="number" placeholder="máx 181436" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>T/O fuel</label><div class="fuel-row-inputs single"><input id="fuelR_tofuel" type="number" placeholder="75731" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Tom</label><div class="fuel-row-inputs eq"><input id="fuelR_tom" type="number" placeholder="234070" oninput="calcFuel()"><input id="fuelR_tomMax" type="number" placeholder="máx 247207" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Trip</label><div class="fuel-row-inputs single"><input id="fuelR_trip" type="number" placeholder="66088" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Elm</label><div class="fuel-row-inputs eq"><input id="fuelR_elm" type="number" placeholder="167982" oninput="calcFuel()"><input id="fuelR_elmMax" type="number" placeholder="máx 192776" oninput="calcFuel()"></div></div>
-          <div class="fuel-row"><label>Possible discret</label><div class="fuel-row-inputs single"><input id="fuelR_possdiscret" type="number" placeholder="13137" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Min div</label><div class="fuel-row-inputs single"><input id="fuelR_minDiv" type="number" placeholder="0" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Dom</label><div class="fuel-row-inputs single"><input id="fuelR_dom" type="number" placeholder="0" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Payload</label><div class="fuel-row-inputs single"><input id="fuelR_payload" type="number" placeholder="0" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Zfm</label><div class="fuel-row-inputs eq"><input id="fuelR_zfm" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelR_zfmMax" type="number" placeholder="máx" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>T/O fuel</label><div class="fuel-row-inputs single"><input id="fuelR_tofuel" type="number" placeholder="0" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Tom</label><div class="fuel-row-inputs eq"><input id="fuelR_tom" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelR_tomMax" type="number" placeholder="máx" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Trip</label><div class="fuel-row-inputs single"><input id="fuelR_trip" type="number" placeholder="0" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Elm</label><div class="fuel-row-inputs eq"><input id="fuelR_elm" type="number" placeholder="0" oninput="calcFuel()"><input id="fuelR_elmMax" type="number" placeholder="máx" oninput="calcFuel()"></div></div>
+          <div class="fuel-row"><label>Possible discret</label><div class="fuel-row-inputs single"><input id="fuelR_possdiscret" type="number" placeholder="0" oninput="calcFuel()"></div></div>
           <div class="fuel-row" style="grid-template-columns:1fr"><p class="sub" style="margin:2px 0 0">Los campos "máx" son el límite de peso de la aeronave para ese día (lo que viene entre paréntesis en el OFP), no el peso real.</p></div>
         </div>
       </div>
@@ -1150,17 +1167,29 @@ tr.ab-on .ln-a{display:inline;}
         </button>
         <div class="vp-zoom" id="vpRouteSel" style="display:none"><button data-v="main" class="active" onclick="setVProfRoute('main')">Ruta</button><button data-v="alt" onclick="setVProfRoute('alt')">Desvío</button></div>
         <div class="vp-zoom"><button data-z="1" class="active" onclick="setVProfZoom(1)">1×</button><button data-z="2" onclick="setVProfZoom(2)">2×</button><button data-z="4" onclick="setVProfZoom(4)">4×</button></div>
-        <div class="vp-zoom" id="vpLayerSel"><button data-l="wind" onclick="setVProfLayer('wind')">Viento</button><button data-l="clouds" onclick="setVProfLayer('clouds')">Cima nubes</button><button data-l="none" onclick="setVProfLayer('none')">Sin capa</button></div>
+        <div class="vp-zoom vp-layer-sel" id="vpLayerSel"><button data-l="wind" onclick="setVProfLayer('wind')">Viento</button><button data-l="clouds" onclick="setVProfLayer('clouds')">Cima nubes</button><button data-l="none" onclick="setVProfLayer('none')">Sin capa</button></div>
         <button class="btn btn-ghost btn-sm vp-radar-btn active" id="vpPartBtn" onclick="toggleVProfParticles()">Partículas</button>
         <button class="btn btn-ghost btn-sm vp-radar-btn" id="vpRadarBtn" onclick="toggleVProfRadar()">Radar actual</button>
       </div>
       <p class="sub" id="profileStatus" style="margin-top:8px"></p>
       <div id="vpAlerts"></div>
-      <div id="vpMap" class="vp-map" style="display:none"></div>
+      <div id="vpMapWrap" class="vp-map-wrap">
+      <div class="vp-full-head">
+        <div class="vp-zoom vp-layer-sel"><button data-l="wind" onclick="setVProfLayer('wind')">Viento</button><button data-l="clouds" onclick="setVProfLayer('clouds')">Cima nubes</button><button data-l="none" onclick="setVProfLayer('none')">Sin capa</button></div>
+      </div>
+      <div class="vp-map-holder">
+        <div id="vpMap" class="vp-map" style="display:none"></div>
+        <button class="vp-expand-btn" id="vpExpandBtn" onclick="toggleVProfFull()">⤢ Ampliar</button>
+      </div>
+      <div class="vp-level" id="vpTimeBox" style="display:none">
+        <div class="vp-level-head"><div class="vp-level-label" id="vpTimeLabel"></div></div>
+        <input type="range" id="vpTimeRange" min="0" max="1000" step="1" value="0" oninput="vpSetCursorFromSlider(this.value)">
+      </div>
       <div class="vp-level" id="vpLevelBox" style="display:none">
         <div class="vp-level-head"><div class="vp-level-label" id="vpLevelLabel"></div><div class="vp-level-wind" id="vpLevelWind"></div></div>
         <input type="range" id="vpLevelRange" min="0" max="5" step="1" value="0" oninput="setVProfLevel(this.value)">
         <div class="vp-level-ticks"><span>AUTO</span><span>FL100</span><span>FL180</span><span>FL300</span><span>FL340</span><span>FL390</span></div>
+      </div>
       </div>
       <div id="vpChartWrap" class="vp-chart-wrap" style="display:none">
         <div class="vp-axis" id="vpAxis"></div>
@@ -1490,7 +1519,7 @@ tr.ab-on .ln-a{display:inline;}
           <div class="fuel-row"><label>ON BLK</label><div class="fuel-row-inputs single"><input id="log_onblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcLogTimes()"></div></div>
           <div class="fuel-row"><label>LAND</label><div class="fuel-row-inputs single"><input id="log_land" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcLogTimes()"></div></div>
           <div class="fuel-row"><label>OFF BLK</label><div class="fuel-row-inputs single"><input id="log_offblk" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcLogTimes()"></div></div>
-          <div class="fuel-row"><label>AIRB</label><div class="fuel-row-inputs single"><input id="log_airb" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState();recalcEto();recalcLogTimes()"></div></div>
+          <div class="fuel-row"><label>AIRB</label><div class="fuel-row-inputs single"><input id="log_airb" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);recalcEto();saveLogState();recalcLogTimes()"></div></div>
           <div class="fuel-row"><label>BLK TIME</label><div class="fuel-row-inputs single"><input id="log_blktime" placeholder="--:--" readonly></div></div>
           <div class="fuel-row"><label>TRIP TIME</label><div class="fuel-row-inputs single"><input id="log_triptime" readonly></div></div>
           <div class="fuel-row"><label>FLT TIME</label><div class="fuel-row-inputs single"><input id="log_flttime" placeholder="--:--" readonly></div></div>
@@ -1688,16 +1717,34 @@ function confirmSetup(){
     if(d){ d.classList.remove('off'); }
   });
   document.getElementById('dot-setup').classList.remove('off');
+  try{ localStorage.setItem('fb_setup_ok_'+(currentAirline||'aea'), '1'); }catch(e){}
+  setConfirmBtn(true);
   switchTab('fuel');
+}
+// botón "Confirmar setup": verde cuando ya se ha confirmado (vuelve a normal al subir otro OFP)
+function setConfirmBtn(ok){
+  const b = document.getElementById('confirmSetupBtn');
+  if(!b) return;
+  b.classList.toggle('confirmed', !!ok);
+  b.querySelector('span').textContent = ok ? 'Setup confirmado' : 'Confirmar setup y continuar';
+}
+function resetSetupConfirmed(){
+  try{ localStorage.removeItem('fb_setup_ok_'+(currentAirline||'aea')); }catch(e){}
+  setConfirmBtn(false);
 }
 
 function switchTab(name){
+  window.scrollTo(0, 0);
+  try{ localStorage.setItem('fb_last_tab_'+(currentAirline||'aea'), name); }catch(e){}
   document.querySelectorAll('#tabbar .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   if(name==='metar') ensureWxAirportsInit();
   if(name==='notam') ensureNotamAirportsInit();
   if(name==='briefing') renderBriefPreview();
-  if(name==='mapas') setTimeout(renderVProfFromStore, 60);
+  if(name==='mapas'){
+    setTimeout(renderVProfFromStore, 60);
+    setTimeout(()=>{ if(!satLeafletMap && (vpOfpRoutePoints() || state.routeText)) generateSatMap(); }, 120);
+  }
 }
 
 function switchFlightTab(name){
@@ -1762,15 +1809,37 @@ function loadAeaLog(){
 }
 
 // lo que se escribe en la cabecera y en la tabla
+// RTO automático: en cuanto escribes algo en un punto (FL, OPT, ATO, F.AVL, F.ACT), su RTO = su ETO +
+// (ATO − ETO) del último punto anterior con ATO. Si escribes el RTO a mano, se respeta.
+function aeaAutoRto(){
+  const trs = [...document.querySelectorAll('#logNavTableBody tr')];
+  let diff = null;
+  trs.forEach(tr=>{
+    const etoMin = hhmmToMin((tr.querySelector('.lognav-eto').textContent||'').trim());
+    const rto = tr.querySelector('.lognav-rto');
+    const hasData = ['.lognav-fl','.lognav-opt','.lognav-ato','.lognav-favl','.lognav-fact'].some(sel=>{ const el = tr.querySelector(sel); return el && String(el.value||'').trim(); });
+    if(rto.dataset.manual!=='1'){
+      rto.value = (hasData && diff!=null && etoMin!=null) ? minToHHMM(etoMin + diff) : '';
+    }
+    const atoMin = hhmmToMin((tr.querySelector('.lognav-ato').value||'').trim());
+    if(atoMin!=null && etoMin!=null){
+      let d = atoMin - etoMin;
+      if(d > 720) d -= 1440; if(d < -720) d += 1440;
+      diff = d;
+    }
+  });
+}
+
 function saveLogState(){
   if(suppressSave || currentAirline==='iberia') return;
   if(!aeaLog) aeaLog = aeaLogEmpty();
+  aeaAutoRto();
   LOG_FIELD_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) aeaLog.fields[id]=el.value; });
   const trs = [...document.querySelectorAll('#logNavTableBody tr')];
   if(trs.length){
     aeaLog.rows = trs.map(tr=>({
       fl: tr.querySelector('.lognav-fl').value, opt: tr.querySelector('.lognav-opt').value,
-      rto: tr.querySelector('.lognav-rto').value, ato: tr.querySelector('.lognav-ato').value,
+      rto: tr.querySelector('.lognav-rto').value, rtoManual: tr.querySelector('.lognav-rto').dataset.manual==='1', ato: tr.querySelector('.lognav-ato').value,
       favl: tr.querySelector('.lognav-favl').value, fact: tr.querySelector('.lognav-fact').value
     }));
   }
@@ -1844,7 +1913,7 @@ function renderLogNavTable(){
     <td class="ln-mach-td"><span class="ln-mv">${w.mach||'—'}</span><span class="ln-a">AB</span></td>
     <td class="ln-tm-td"><span class="ln-tv">${w.tm||'—'}</span></td>
     <td class="lognav-eto">--:--</td>
-    <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
+    <td><input class="lognav-input lognav-rto" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="this.dataset.manual=this.value?'1':'';autoColon(this);saveLogState()"></td>
     <td><input class="lognav-input lognav-ato" inputmode="numeric" maxlength="5" placeholder="--:--" oninput="autoColon(this);saveLogState()"></td>
     <td>${w.togo||'—'}</td><td>${w.fuelRqd||'—'}</td>
     <td><input class="lognav-input lognav-favl" placeholder="—" oninput="saveLogState()"></td>
@@ -1872,10 +1941,12 @@ function renderAeaLog(){
     const tr = trs[i]; if(!tr || !r) return;
     [['fl','.lognav-fl'],['opt','.lognav-opt'],['rto','.lognav-rto'],['ato','.lognav-ato'],['favl','.lognav-favl'],['fact','.lognav-fact']]
       .forEach(([k,sel])=>{ const el = tr.querySelector(sel); if(el && r[k]) el.value = r[k]; });
+    if(r.rtoManual) tr.querySelector('.lognav-rto').dataset.manual = '1';
   });
   suppressSave = false;
   recalcLogTimes();
   recalcEto();
+  aeaAutoRto();
   updateAeaAB();
   setTimeout(()=>{ drawAeaDirects(); updateAeaAB(); }, 30);
 }
@@ -2426,14 +2497,32 @@ function decodeTaf(raw){
     }
   }
 
+  // duración de la validez (con el día): un TAF de 24/30 h cubre todo el día aunque la hora final coincida con la inicial
+  let validityHours = null;
+  if(validity){
+    const d1 = +validity.slice(0,2), h1 = +validity.slice(2,4), d2 = +validity.slice(5,7), h2 = +validity.slice(7,9);
+    let days = d2 - d1; if(days < 0) days += 30;
+    validityHours = days*24 + (h2 - h1);
+  }
   const decodedPeriods = periods.map(p=>({
     tag:p.tag, label:p.label, timeLabel:p.timeLabel, from:p.from, to:p.to,
+    allDay: p.tag==='BASE' && validityHours!=null && validityHours>=24,
     raw: (p.marker ? p.marker+' ' : '') + p.body.join(' '),
     decoded: decodeTokens(p.body, false)
   }));
 
   const headerRaw = ['TAF', icao, issue, validity].filter(Boolean).join(' ');
   return {icao, issue, validity, periods: decodedPeriods, raw: clean, headerRaw};
+}
+
+// periodos del TAF que afectan a la ventana: los cambios (BECMG/TEMPO/PROB/FM) que caen dentro; si
+// ninguno cae dentro, la base del TAF es lo que aplica y se marca ella
+function tafRelevantPeriods(dt, win){
+  if(!win || !dt) return [];
+  const changes = dt.periods.filter(p=> p.tag!=='BASE' && p.from!=null && p.to!=null && minutesOverlap(p.from,p.to,win[0],win[1]));
+  if(changes.length) return changes;
+  const base = dt.periods.find(p=>p.tag==='BASE');
+  return base ? [base] : [];
 }
 
 function parseWxBlob(text){
@@ -2538,7 +2627,7 @@ function renderWxView(){
   if(g && g.metar) dm = decodeMetar(g.metar);
   if(g && g.taf){
     dt = decodeTaf(g.taf);
-    relevantPeriods = dt.periods.filter(p=> win && p.from!=null && p.to!=null && minutesOverlap(p.from,p.to,win[0],win[1]));
+    relevantPeriods = tafRelevantPeriods(dt, win);
   }
 
   let affectingSummary = '';
@@ -2975,6 +3064,10 @@ function applyExtraData(h, sidStar, plan){
 }
 
 function applyFuelData(f){
+  // si el OFP trae la tabla de combustible pero no alguno de estos ADD, es que vale 0
+  if(Object.keys(f).length){
+    ['etops','wxx','atc','opn'].forEach(k=>{ if(f[k+'_kg']==null){ f[k+'_kg']='0'; f[k+'_t']='00.00'; } });
+  }
   setVal('fuelL_trip_kg', f.trip_kg); setVal('fuelL_trip_t', f.trip_t);
   setVal('fuelL_cont_kg', f.cont_kg); setVal('fuelL_cont_t', f.cont_t);
   setVal('fuelL_altn_kg', f.altn_kg); setVal('fuelL_altn_t', f.altn_t);
@@ -3202,6 +3295,7 @@ function rotateChart(i){
   if(!c) return;
   c.rotation = ((c.rotation||0) + 90) % 360;
   renderMapsView();
+  saveChartsIdb();
 }
 
 // Zoom/pan state lives on the chart object itself (c.scale/c.panX/c.panY) so it survives a rotate
@@ -3585,6 +3679,7 @@ function buildNotamMapFromBulletin(bulletinText, airports){
 
 async function handleOfpUpload(file){
   if(!file) return;
+  resetSetupConfirmed();
   if(!window['pdfjsLib']){
     setOfpStatus('No se pudo cargar el lector de PDF (sin conexión). Rellena Setup a mano.', true);
     return;
@@ -3825,6 +3920,7 @@ async function handleOfpUpload(file){
     });
     selectedChartIdx = null;
     renderMapsView();
+    saveChartsIdb();
     const phenomenaCount = mapsChartList.filter(c=>c.phenomena).length;
     const namedCount = mapsChartList.filter(c=>c.name).length;
     const mapsMsg = mapsChartList.length
@@ -4160,7 +4256,7 @@ function collectBriefRisks(airports){
     const win = getWindow(entry);
     if(g && g.taf){
       const dt = decodeTaf(g.taf);
-      const relevant = dt.periods.filter(p=> win && p.from!=null && p.to!=null && minutesOverlap(p.from,p.to,win[0],win[1]));
+      const relevant = tafRelevantPeriods(dt, win);
       const scan = relevant.length ? relevant : dt.periods;
       scan.forEach(p=>{
         p.decoded.forEach(d=>{
@@ -4229,7 +4325,7 @@ function summarizeWxLine(entry){
   let parts = [];
   if(g.taf){
     const dt = decodeTaf(g.taf);
-    const relevant = dt.periods.filter(p=> win && p.from!=null && p.to!=null && minutesOverlap(p.from,p.to,win[0],win[1]));
+    const relevant = tafRelevantPeriods(dt, win);
     const scan = relevant.length ? relevant : (dt.periods[0] ? [dt.periods[0]] : []);
     scan.forEach(p=> p.decoded.forEach(d=>parts.push(d.v)));
   } else if(g.metar){
@@ -4413,7 +4509,7 @@ async function generateBriefingPdf(){
       if(g.metar) addPara('METAR: ' + decodeMetar(g.metar).raw);
       if(g.taf){
         const dt = decodeTaf(g.taf);
-        const relevant = dt.periods.filter(p=> win && p.from!=null && p.to!=null && minutesOverlap(p.from,p.to,win[0],win[1]));
+        const relevant = tafRelevantPeriods(dt, win);
         if(relevant.length){
           relevant.forEach(p=>{
             const bits = p.decoded.map(d=>d.v).join(', ');
@@ -4681,7 +4777,8 @@ async function generateSatMap(){
   }
   setSatMapStatus('Preparando mapa…');
   try{
-    const db = await loadAirportCoords();
+    let db = {};
+    try{ db = await loadAirportCoords(); }catch(e){ db = {}; }
     const airports = getAirportRoleList();
     if(!state.dep && !airports.length){
       setSatMapStatus('Completa Setup (departure/arrival) primero.', true);
@@ -4733,7 +4830,7 @@ async function generateSatMap(){
     satLeafletMap = L.map(mapEl, {attributionControl:false});
 
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18
+      maxZoom: 12, maxNativeZoom: 5
     }).addTo(satLeafletMap);
 
     const amberIcon = L.divIcon({className:'', html:'<div style="width:10px;height:10px;border-radius:50%;background:#f2a900;border:2px solid #060d1a;"></div>', iconSize:[10,10]});
@@ -5086,6 +5183,7 @@ function loadAppState(){
 // the other airline's data can never show through, then recalls this airline's own save if any.
 function loadAirlineData(){
   resetSharedAppData();
+  setConfirmBtn((()=>{ try{ return localStorage.getItem('fb_setup_ok_'+(currentAirline||'aea'))==='1'; }catch(e){ return false; } })());
   if(currentAirline!=='iberia') loadAeaRpg(); else aeaRpg = null;
   vprof = null; vprofMain = null; vprofAltRoute = null; vprofView = 'main';
   if(loadAppState()){
@@ -5094,6 +5192,7 @@ function loadAirlineData(){
     setOfpStatus('');
   }
   renderMapsView();
+  loadChartsIdb();
 }
 
 // ================= A/C STATUS / MEL ENGINE =================
@@ -5699,10 +5798,50 @@ function calcBrakeCooling(){
   const event = document.getElementById('qrhEvent').value;
   const reverse = document.getElementById('qrhReverse').value;
 
-  if(isNaN(weight) || !weight || isNaN(oat) || isNaN(speedIn) || !speedIn || isNaN(paFt)){
-    statusEl.textContent = 'Rellena peso, OAT, velocidad de frenada y altitud de presión.';
+  if(isNaN(weight) || !weight || isNaN(oat) || isNaN(paFt)){
+    statusEl.textContent = 'Rellena peso, OAT y altitud de presión (y la velocidad de frenada si la sabes).';
     statusEl.style.color = 'var(--danger)';
     resEl.innerHTML = '';
+    return;
+  }
+  const speedMissing = isNaN(speedIn) || !speedIn;
+
+  // --- velocidades límite: a partir de qué brakes-on speed (KIAS, con la corrección de viento) se entra
+  //     en CAUTION y en FUSE PLUG MELT ZONE, con el peso, OAT, altitud, evento y reversa elegidos ---
+  const limitsHtml = (()=>{
+    const pk = paFt/1000, t1b = pk>10;
+    const tbl = t1b ? ds.table1b : ds.table1a, pl = t1b ? ds.paB : ds.paA;
+    const pkc = Math.max(pl[0], Math.min(pl[pl.length-1], pk));
+    const rw = qrhInterpolatedRow(tbl, Math.max(wMin, Math.min(wMax, weight)), Math.max(0, Math.min(40, oat)), ds.weights);
+    const evRow = (reverse==='norev' ? ds.t2aNorev : ds.t2b2engrev)[event];
+    let caution = null, fuse = null, lastOk = null, firstOk = null;
+    for(let k=60; k<=260; k++){
+      let eff = k;
+      if(windType==='headwind') eff = k - 0.5*windKt; else if(windType==='tailwind') eff = k + 1.5*windKt;
+      if(eff<sMin || eff>sMax) continue;
+      const ref = qrhValueForSpeedPA(rw, eff, pl, pkc, ds.speeds);
+      if(ref==null) continue;
+      const adjE = qrhInterp1D(ref, ds.t2energy, evRow).v;
+      if(firstOk==null) firstOk = k;
+      lastOk = k;
+      if(caution==null && adjE > ds.brackets[ds.brackets.length-1]) caution = k;
+      if(fuse==null && adjE > ds.cautionMax) fuse = k;
+    }
+    if(lastOk==null) return '<p class="wx-empty">No se pueden calcular las velocidades límite con estos datos (fuera de la tabla del QRH).</p>';
+    const fmt = (v, name)=> v!=null
+      ? `<b style="color:var(--danger)">${v} kt</b>${v===firstOk ? ` <span class="sub">(ya desde ${firstOk} kt, el inicio de la tabla)</span>` : ''}`
+      : `<b>por encima de ${lastOk} kt</b> <span class="sub">(fuera de la tabla del QRH)</span>`;
+    return `<div class="qrh-limits">
+      <div class="qrh-limits-title">Velocidad de frenada límite (brakes on speed, KIAS)</div>
+      <div class="ftl-result" style="margin-top:6px"><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Entras en CAUTION a partir de</div><div class="num" style="font-size:18px">${fmt(caution)}</div></div><span class="badge warn">Caution</span></div>
+      <div class="ftl-result" style="margin-top:6px"><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Entras en FUSE PLUG MELT ZONE a partir de</div><div class="num" style="font-size:18px">${fmt(fuse)}</div></div><span class="badge err">Fuse plug</span></div>
+      <p class="sub" style="margin-top:6px">Con el peso, OAT, altitud de presión, viento, evento y reversa de arriba. Sin contar millas de rodaje ni frenos desactivados.</p>
+    </div>`;
+  })();
+  if(speedMissing){
+    statusEl.textContent = 'Sin velocidad de frenada: se muestran las velocidades a partir de las que entras en CAUTION y FUSE PLUG MELT.';
+    statusEl.style.color = 'var(--muted)';
+    resEl.innerHTML = limitsHtml;
     return;
   }
   if(weight<wMin || weight>wMax){
@@ -5784,7 +5923,7 @@ function calcBrakeCooling(){
 
   html += `<p class="sub" style="margin-top:10px">Añade 1.0 M ft·lb por cada milla de rodaje. Con 1 freno desactivado: +15% de energía. Con 2 frenos desactivados: +34%. La indicación de temperatura de frenos en el MFD puede usarse 10-15 min después de parar, o en vuelo con el tren retraído, para confirmar el programa de enfriamiento.</p>`;
 
-  resEl.innerHTML = html;
+  resEl.innerHTML = html + limitsHtml;
 }
 
 async function handleMelUpload(file){
@@ -6525,7 +6664,8 @@ async function generateVProf(){
     renderVProf();
     const extra = (p.unmatched && p.unmatched.length) ? ` Cambios de nivel no encontrados en la ruta: ${p.unmatched.join(', ')}.` : '';
     const miss = route.missing.length ? ` Sin coordenadas: ${route.missing.slice(0,6).join(', ')}${route.missing.length>6?'…':''}.` : '';
-    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(p.totalTime)} · ${route.fromMaster?'distancias del Master Document':'distancias calculadas'}.${wxMsg}${extra}${miss}`, wxMsg.includes('no disponible'));
+    const tilesMsg = await vpPrecacheTiles(p.wps.filter(w=>w.lat!=null).map(w=>[w.lat,w.lon]));
+    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(p.totalTime)} · ${route.fromMaster?'distancias del Master Document':'distancias calculadas'}.${wxMsg}${extra}${miss}${tilesMsg}`, wxMsg.includes('no disponible'));
   }catch(err){
     console.error(err);
     setProfileStatus('Error generando el perfil: ' + err.message, true);
@@ -6544,7 +6684,8 @@ async function generateVProfAeaRpg(){
     vprofCursorD = 0; vprofCtUrls = {};
     vpUpdateRouteSel();
     renderVProf();
-    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(Math.round(p.totalTime))} · ruta y niveles de la Route Planning Guide del OFP.${msg}`, msg.includes('no disponible'));
+    const tilesMsg = await vpPrecacheTiles(p.wps.filter(w=>w.lat!=null).map(w=>[w.lat,w.lon]));
+    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(Math.round(p.totalTime))} · ruta y niveles de la Route Planning Guide del OFP.${msg}${tilesMsg}`, msg.includes('no disponible'));
   }catch(err){
     console.error(err);
     setProfileStatus('Error generando el perfil: ' + err.message, true);
@@ -6667,7 +6808,8 @@ async function generateVProfIberia(){
     vprofCursorD = 0; vprofCtUrls = {};
     vpUpdateRouteSel();
     renderVProf();
-    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(Math.round(p.totalTime))} · datos de la navigation log del OFP.${msg}`, msg.includes('no disponible'));
+    const tilesMsg = await vpPrecacheTiles(p.wps.concat(alt ? alt.wps : []).filter(w=>w.lat!=null).map(w=>[w.lat,w.lon]));
+    setProfileStatus(`Perfil generado y guardado en el iPad · ${p.wps.length} puntos · ${Math.round(p.total)} NM · ${minToHHMM(Math.round(p.totalTime))} · datos de la navigation log del OFP.${msg}${tilesMsg}`, msg.includes('no disponible'));
   }catch(err){
     console.error(err);
     setProfileStatus('Error generando el perfil: ' + err.message, true);
@@ -6888,6 +7030,13 @@ function vpOfpWindHtml(d){
 
 function vpUpdateCursor(){
   vprofWindProbe = null;
+  if(vprof){
+    const tb = document.getElementById('vpTimeBox'); if(tb) tb.style.display = '';
+    const tr = document.getElementById('vpTimeRange'); if(tr) tr.value = Math.round(1000*vprofCursorD/(vprof.total||1));
+    const pos0 = vpInterpWps(vprof.wps, vprofCursorD);
+    const tl = document.getElementById('vpTimeLabel');
+    if(tl) tl.textContent = `Avión: ${vpTimeLabel(pos0.time)} · ${vpUtcLabel(pos0.time)} · ${Math.round(vprofCursorD)} NM · cerca de ${vpNearestName(vprofCursorD)} · FL${String(Math.round(vprofAltFn(vprofCursorD)/100)).padStart(3,'0')}`;
+  }
   if(!vprof || !vprof._X) return;
   const d = vprofCursorD, ft = vprofAltFn(d);
   const x = vprof._X(d), y = vprof._Y(ft);
@@ -7328,12 +7477,27 @@ function vpHourLabel(t){ const d = new Date(t*1000); return String(d.getUTCHours
 function setVProfLayer(l){
   vprofLayer = l;
   try{ localStorage.setItem('fb_vp_layer', l); }catch(e){}
-  document.querySelectorAll('#vpLayerSel button').forEach(b=>b.classList.toggle('active', b.dataset.l===l));
+  document.querySelectorAll('.vp-layer-sel button').forEach(b=>b.classList.toggle('active', b.dataset.l===l));
   if(vprof) vpMapUpdate(vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60));
 }
 function setVProfLevel(v){
   vprofLevelSel = +v;
   if(vprof) vpMapUpdate(vprof.depUnix + Math.round(vpInterpWps(vprof.wps, vprofCursorD).time*60));
+}
+// mapa a pantalla completa (con selector de capa, posición del avión y altura)
+function toggleVProfFull(force){
+  const w = document.getElementById('vpMapWrap');
+  const on = force!=null ? force : !w.classList.contains('vp-full');
+  w.classList.toggle('vp-full', on);
+  document.body.classList.toggle('vp-no-scroll', on);
+  document.getElementById('vpExpandBtn').textContent = on ? '✕ Cerrar' : '⤢ Ampliar';
+  setTimeout(()=>{ if(vprofMap) vprofMap.invalidateSize(); }, 80);
+}
+// deslizador de la posición del avión (mueve el avión igual que tocar el perfil)
+function vpSetCursorFromSlider(v){
+  if(!vprof) return;
+  vprofCursorD = vprof.total * (+v)/1000;
+  vpUpdateCursor();
 }
 function toggleVProfParticles(){
   vprofParticles = !vprofParticles;
@@ -7418,11 +7582,11 @@ async function renderVProfMap(){
   if(vprofMap.attributionControl && vprofMap.attributionControl.setPrefix) vprofMap.attributionControl.setPrefix(false);
   // mapa base oscuro sin satélite (como Windy); sin conexión se queda el fondo gris y las capas siguen viéndose
   // Esri "Dark Gray Canvas": gratis y sin clave (mismo servidor que el satélite que ya usábamos)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, maxNativeZoom:16, attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(vprofMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, maxNativeZoom:VP_TILE_MAXZ, attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(vprofMap);
   // fronteras y nombres por encima de las capas de color
   const refPane = vprofMap.createPane ? vprofMap.createPane('vpRef') : null;
   if(refPane){ refPane.style.zIndex = 460; refPane.style.pointerEvents = 'none'; }
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, maxNativeZoom:16, pane: refPane ? 'vpRef' : undefined, opacity:.9}).addTo(vprofMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, maxNativeZoom:5, pane: refPane ? 'vpRef' : undefined, opacity:.9}).addTo(vprofMap);
 
   vprofCtCtrl = L.control({position:'bottomleft'});
   vprofCtCtrl.onAdd = ()=>{
@@ -7456,7 +7620,7 @@ async function renderVProfMap(){
   const planeIcon = L.divIcon({className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#ffffff;border:2px solid #060d1a;box-shadow:0 0 0 2px rgba(255,255,255,.35)"></div>', iconSize:[14,14], iconAnchor:[7,7]});
   vprofPlane = L.marker([pts[0].lat, pts[0].lon], {icon:planeIcon, interactive:false, zIndexOffset:1000}).addTo(vprofMap);
   vprofMap.fitBounds(L.latLngBounds(pts.map(w=>[w.lat,w.lon])), {padding:[20,20]});
-  document.querySelectorAll('#vpLayerSel button').forEach(b=>b.classList.toggle('active', b.dataset.l===vprofLayer));
+  document.querySelectorAll('.vp-layer-sel button').forEach(b=>b.classList.toggle('active', b.dataset.l===vprofLayer));
   vpStartParticles();
   vprofWindProbe = null;
   const probe = e=>{ vprofWindProbe = e.latlng; vpShowWindAt(e.latlng.lat, e.latlng.lng, 'en el punto'); };
@@ -7821,6 +7985,92 @@ function renderIberiaLog(){
   }).join('');
 }
 
+// ================= MAPAS SIN CONEXIÓN: guardar el fondo del mapa de la zona de la ruta =================
+// Al generar el perfil (con internet) se descargan las teselas del fondo alrededor de la ruta hasta el
+// zoom 6; el sw.js las guarda en el iPad. Los mapas no piden más allá del zoom 6 (al acercarse se
+// amplía ese nivel), así que en vuelo, sin datos, el mapa nunca se queda en blanco.
+const VP_TILE_MAXZ = 6;
+const VP_TILE_LAYERS = [
+  {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', maxZ:6},
+  {url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', maxZ:5},
+  {url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZ:5}
+];
+function vpTileXY(lat, lon, z){
+  const n = Math.pow(2, z);
+  const la = Math.max(-85, Math.min(85, lat)) * Math.PI/180;
+  return [Math.floor((lon+180)/360*n), Math.floor((1 - Math.log(Math.tan(la) + 1/Math.cos(la))/Math.PI)/2*n)];
+}
+function vpTileCenter(x, y, z){
+  const n = Math.pow(2, z);
+  const lon = (x+0.5)/n*360 - 180;
+  const lat = Math.atan(Math.sinh(Math.PI*(1 - 2*(y+0.5)/n)))*180/Math.PI;
+  return [lat, lon];
+}
+async function vpPrecacheTiles(points){
+  if(!('serviceWorker' in navigator) || !navigator.serviceWorker.controller || !points || points.length<2) return '';
+  const lats = points.map(p=>p[0]), lons = points.map(p=>p[1]);
+  const minLat = Math.max(-84, Math.min(...lats)-10), maxLat = Math.min(84, Math.max(...lats)+10);
+  const minLon = Math.max(-180, Math.min(...lons)-12), maxLon = Math.min(179.9, Math.max(...lons)+12);
+  const samples = [];
+  for(let i=0;i<points.length-1;i++){ const a=points[i], b=points[i+1]; for(let k=0;k<=4;k++) samples.push([a[0]+(b[0]-a[0])*k/4, a[1]+(b[1]-a[1])*k/4]); }
+  const urls = [];
+  VP_TILE_LAYERS.forEach(layer=>{
+    for(let z=0; z<=layer.maxZ; z++){
+      const [x0,y0] = vpTileXY(maxLat, minLon, z), [x1,y1] = vpTileXY(minLat, maxLon, z);
+      for(let x=Math.min(x0,x1); x<=Math.max(x0,x1); x++) for(let y=Math.min(y0,y1); y<=Math.max(y0,y1); y++){
+        if(z>=5){ // en los zooms altos solo el pasillo de la ruta (≈700 NM)
+          const c = vpTileCenter(x, y, z);
+          if(!samples.some(sp=>vpGc(sp, c) < 700)) continue;
+        }
+        urls.push(layer.url.replace('{z}',z).replace('{y}',y).replace('{x}',x));
+      }
+    }
+  });
+  let done = 0, fails = 0;
+  const worker = async ()=>{
+    while(urls.length){
+      const u = urls.pop();
+      try{ await fetch(u, {mode:'no-cors'}); }catch(e){ fails++; }
+      done++;
+      if(done % 40 === 0) setProfileStatus(`Guardando el mapa de la zona para usarlo sin conexión… ${done} teselas`);
+    }
+  };
+  await Promise.all(Array.from({length:6}, worker));
+  return fails ? ` Mapa sin conexión: ${done-fails} teselas guardadas (${fails} fallos).` : ` Mapa sin conexión ✓ (${done} teselas).`;
+}
+
+// ================= GUARDADO: cartas, FTL/QRH y dónde estabas =================
+async function saveChartsIdb(){
+  try{ if(window.indexedDB) await idbSet('charts_'+(currentAirline||'aea'), mapsChartList.map(c=>({page:c.page, dataUrl:c.dataUrl, name:c.name, phenomena:c.phenomena, sourceLabel:c.sourceLabel, rotation:c.rotation||0}))); }catch(e){ console.warn('No se pudieron guardar las cartas:', e); }
+}
+async function loadChartsIdb(){
+  try{
+    if(!window.indexedDB) return;
+    const list = await idbGet('charts_'+(currentAirline||'aea'));
+    if(Array.isArray(list) && list.length && !mapsChartList.length){ mapsChartList = list; selectedChartIdx = null; renderMapsView(); }
+  }catch(e){ console.warn('No se pudieron leer las cartas guardadas:', e); }
+}
+const TOOL_INPUTS_KEY = 'fb_tool_inputs';
+function saveToolInputs(){
+  const data = {};
+  document.querySelectorAll('#panel-ftl input, #panel-ftl select, #panel-qrh input, #panel-qrh select').forEach(el=>{
+    if(!el.id) return;
+    data[el.id] = el.type==='checkbox' ? el.checked : el.value;
+  });
+  try{ localStorage.setItem(TOOL_INPUTS_KEY, JSON.stringify(data)); }catch(e){}
+}
+function loadToolInputs(){
+  let data = null;
+  try{ data = JSON.parse(localStorage.getItem(TOOL_INPUTS_KEY)||'null'); }catch(e){}
+  if(!data) return;
+  Object.keys(data).forEach(id=>{ const el = document.getElementById(id); if(!el) return; if(el.type==='checkbox') el.checked = !!data[id]; else el.value = data[id]; });
+  try{ calcFtl(); calcRest(); if(document.getElementById('qrhVariant').value) calcBrakeCooling(); }catch(e){}
+}
+['panel-ftl','panel-qrh'].forEach(id=>{
+  const p = document.getElementById(id);
+  if(p){ p.addEventListener('input', saveToolInputs); p.addEventListener('change', saveToolInputs); }
+});
+
 // ================= AIRLINE SELECTION =================
 const AIRLINE_KEY = 'flightbrief_airline';
 let currentAirline = null;
@@ -8143,6 +8393,7 @@ function openIbAltNotam(code){ selectedNotamAirport = code; switchTab('notam'); 
 async function handleIberiaOfpUpload(fileList){
   const files = Array.from(fileList);
   if(!files.length) return;
+  resetSetupConfirmed();
 
   const taken = new Set();
   const iberiaFiles = files.map(file=>{
@@ -8178,6 +8429,7 @@ async function handleIberiaOfpUpload(fileList){
   }
   selectedChartIdx = null;
   renderMapsView();
+  saveChartsIdb();
 
   const ofpEntry = iberiaFiles.find(e=>e.role==='ofp');
   const notamEntry = iberiaFiles.find(e=>e.role==='notam');
@@ -8306,6 +8558,7 @@ function selectAirline(airline){
 
 function changeAirline(){
   localStorage.removeItem(AIRLINE_KEY);
+  try{ localStorage.removeItem('fb_last_section'); }catch(e){}
   closeSectionDrawer();
   currentSection = null;
   document.getElementById('app').style.display = 'none';
@@ -8324,6 +8577,7 @@ function selectSection(section){
 
 function goToSection(section){
   currentSection = section;
+  try{ localStorage.setItem('fb_last_section', section); }catch(e){}
   closeSectionDrawer();
   if(section === 'preflight'){
     document.getElementById('flightApp').style.display = 'none';
@@ -8364,6 +8618,7 @@ function initAppOnce(){
   loadWxApiUrl();
   loadProfileApiUrl();
   applyMapCardPrefs();
+  loadToolInputs();
 }
 
 // skip the airline landing screen if an airline was already chosen on this device — still asks
@@ -8372,7 +8627,19 @@ const savedAirline = localStorage.getItem(AIRLINE_KEY);
 if(savedAirline){
   applyAirline(savedAirline);
   document.getElementById('airlineLanding').style.display = 'none';
-  document.getElementById('sectionLanding').style.display = 'flex';
+  // al reabrir (p. ej. si iOS cerró la app en segundo plano) se vuelve a la sección y pestaña donde estabas
+  const lastSection = (()=>{ try{ return localStorage.getItem('fb_last_section'); }catch(e){ return null; } })();
+  if(lastSection==='preflight' || lastSection==='flight'){
+    document.getElementById('sectionLanding').style.display = 'none';
+    goToSection(lastSection);
+    if(lastSection==='preflight'){
+      const lastTab = (()=>{ try{ return localStorage.getItem('fb_last_tab_'+savedAirline); }catch(e){ return null; } })();
+      const tabBtn = lastTab && document.querySelector(`#tabbar .tab[data-tab="${lastTab}"]`);
+      if(tabBtn && tabBtn.style.display!=='none') switchTab(lastTab);
+    }
+  } else {
+    document.getElementById('sectionLanding').style.display = 'flex';
+  }
 }
 
 // ================= APP SIN CONEXIÓN (instalada en la pantalla de inicio) =================
