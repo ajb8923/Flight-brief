@@ -3856,6 +3856,12 @@ async function handleOfpUpload(file){
       });
     }
 
+    // OFP sin "Documentación ETOPS" (p. ej. MAD-ASU): alternativo y alternativos ETOPS desde el propio OFP
+    if(!plan.airports.length){
+      const fromOfp = await extractOfpAlternates(pdf);
+      plan.airports = fromOfp;
+    }
+
     if(!plan.dep && plan.airports.length===0){
       setOfpStatus('Se encontró la página pero no se pudieron leer los campos. Rellena Setup a mano.', true);
       return;
@@ -3985,6 +3991,36 @@ async function handleOfpUpload(file){
   }
 }
 
+// Alternativos desde las páginas del OFP: "ALTN (SBPA) …" de la tabla de combustible, "TAKE OFF ALTN: XXXX"
+// y la lista "ENRTE ALTNS (WEATHER SUITABILITY PERIOD)" con "GVAC/01 04:36 07:30 … WX MIN: … FCST WX: …"
+async function extractOfpAlternates(pdf){
+  const out = [], seen = new Set();
+  const push = (type, icao, from, to)=>{ if(!/^[A-Z]{4}$/.test(icao) || seen.has(type+icao)) return; seen.add(type+icao); out.push({type, icao, iata:'', from, to}); };
+  let bulletinAlts = [];
+  for(let p=1; p<=Math.min(pdf.numPages, 60); p++){
+    const page = await pdf.getPage(p);
+    const q = await quickPageText(page);
+    // cabecera del boletín de NOTAM: "ROUTE: LEMD - SGAS   ALTN:SBPA SACO SAEZ SBGR"
+    const bm = q.match(/ROUTE:\s*[A-Z]{4}\s*-\s*[A-Z]{4}\s+ALTN:\s*((?:[A-Z]{4}\s*)+)/);
+    if(bm && !bulletinAlts.length) bulletinAlts = bm[1].trim().split(/\s+/);
+    if(!/ALTN\s*\(|ENRTE\s+ALTNS|TAKE\s*OFF\s+ALTN/i.test(q)) continue;
+    const t = await layoutPageText(page);
+    let m = t.match(/TAKE\s*OFF\s+ALTN:\s*([A-Z]{4})\b/);
+    if(m && m[1]!=='NIL') push('ALT', m[1], null, null);
+    const altRe = /^\s*ALTN\s*\(([A-Z]{4})\)/gm;
+    while((m = altRe.exec(t))) push('ALT', m[1], null, null);
+    const enr = t.match(/ENRTE\s+ALTNS[^\n]*\n([\s\S]*?)(?:\n\s*\n\s*\n|-{10,}|$)/);
+    if(enr){
+      const rowRe = /^\s*([A-Z]{4})(?:\/\S+)?\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+.*?WX\s+MIN:/gm;
+      while((m = rowRe.exec(enr[1]))) push('ETOPS', m[1], m[2], m[3]);
+    }
+  }
+  // el resto de alternativos de destino que lista el despacho, detrás del del combustible
+  bulletinAlts.forEach(a=>push('ALT', a, null, null));
+  const alts = out.filter(a=>a.type==='ALT'), etops = out.filter(a=>a.type==='ETOPS');
+  return alts.concat(etops);
+}
+
 function applyExtractedData(plan, timings){
   if(plan.dep) document.getElementById('dep').value = plan.dep;
   if(plan.arr) document.getElementById('arr').value = plan.arr;
@@ -4012,7 +4048,8 @@ function applyExtractedData(plan, timings){
   // store the OFP's own wx-relevant windows (UTC), keyed by ICAO — takes priority over the heuristic calc
   state.ofpWindows = {};
   plan.airports.forEach(a=>{
-    state.ofpWindows[a.icao] = [hhmmToMin(a.from), hhmmToMin(a.to)];
+    const f = hhmmToMin(a.from), t = hhmmToMin(a.to);
+    if(f!=null && t!=null) state.ofpWindows[a.icao] = [f, t];
   });
 
   onSetupChange();
