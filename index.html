@@ -3842,6 +3842,24 @@ async function handleOfpUpload(file){
       lastAircraftStatus = { raw: 'NIL (sin defectos en Documentación ETOPS)', melRef: null, defects: [] };
     }
 
+    // OFP sin "Documentación ETOPS": las mismas tablas vienen en el propio OFP
+    // ("CONSIDERED WX MIN DURING ASC" y "ENRTE ALTNS (WEATHER SUITABILITY PERIOD)")
+    let ofpFuelAlt = null;
+    if(!etopsDoc.originDestRows.length && !etopsDoc.etopsAltRows.length){
+      const asc = await extractOfpAscTables(pdf);
+      etopsDoc.originDestRows = asc.originDestRows;
+      etopsDoc.etopsAltRows = asc.etopsAltRows;
+      ofpFuelAlt = asc.fuelAlt;
+      const dep = asc.originDestRows.find(r=>r.role==='DEP'), dst = asc.originDestRows.find(r=>r.role==='DEST');
+      if(!etopsDoc.depRwy && dep && dep.airportRwy.includes('/')) etopsDoc.depRwy = dep.airportRwy.split('/')[1];
+      if(!etopsDoc.arrRwy && dst && dst.airportRwy.includes('/')) etopsDoc.arrRwy = dst.airportRwy.split('/')[1];
+      // el alternativo del combustible (ALTN (SBPA)) va el primero
+      if(ofpFuelAlt){
+        const i = etopsDoc.originDestRows.findIndex(r=>r.role==='DEST ALTN' && r.airportRwy.split('/')[0]===ofpFuelAlt);
+        if(i>0){ const r = etopsDoc.originDestRows.splice(i,1)[0]; const j = etopsDoc.originDestRows.findIndex(x=>x.role==='DEST ALTN'); etopsDoc.originDestRows.splice(j<0?etopsDoc.originDestRows.length:j, 0, r); }
+      }
+    }
+
     // prefer the ETOPS doc's own detailed tables for the alternates/ETOPS airport list when present —
     // richer (from/to/approach/wx) than the old plan-page table, and the only source in the new format
     if(etopsDoc.originDestRows.length || etopsDoc.etopsAltRows.length){
@@ -3989,6 +4007,29 @@ async function handleOfpUpload(file){
     console.error(err);
     setOfpStatus('Error leyendo el PDF: '+err.message+'. Rellena Setup a mano.', true);
   }
+}
+
+async function extractOfpAscTables(pdf){
+  const out = {originDestRows:[], etopsAltRows:[], fuelAlt:null};
+  for(let p=1; p<=Math.min(pdf.numPages, 45); p++){
+    const page = await pdf.getPage(p);
+    const q = await quickPageText(page);
+    if(!/CONSIDERED\s+WX\s+MIN|ENRTE\s+ALTNS|ALTN\s*\(/i.test(q)) continue;
+    const t = await layoutPageText(page);
+    let m;
+    if(!out.fuelAlt && (m = t.match(/^\s*ALTN\s*\(([A-Z]{4})\)/m))) out.fuelAlt = m[1];
+    const asc = t.match(/CONSIDERED\s+WX\s+MIN[^\n]*\n([\s\S]*?)(?:\n\s*\n\s*\n|-{10,}|$)/);
+    if(asc && !out.originDestRows.length){
+      const re = /^\s*(DEP|DEST\s+ALTN|DEST)\s+(\S+)\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(.+?)\s+(\d+\/\d+)\s+(\d+\/\d+)\s*$/gm;
+      while((m = re.exec(asc[1]))) out.originDestRows.push({role:m[1].replace(/\s+/g,' ').trim(), airportRwy:m[2], from:m[3], to:m[4], approach:m[5].trim(), wxMin:m[6], fcst:m[7]});
+    }
+    const enr = t.match(/ENRTE\s+ALTNS[^\n]*\n([\s\S]*?)(?:\n\s*\n|-{10,}|$)/);
+    if(enr && !out.etopsAltRows.length){
+      const re = /^\s*(\S+)\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(.+?)\s+WX\s+MIN:\s*(\S+)\s+FCST\s+WX:\s*(\S+)/gm;
+      while((m = re.exec(enr[1]))) out.etopsAltRows.push({airportRwy:m[1], from:m[2], to:m[3], approach:m[4].trim(), wxMin:m[5], fcst:m[6]});
+    }
+  }
+  return out;
 }
 
 // Alternativos desde las páginas del OFP: "ALTN (SBPA) …" de la tabla de combustible, "TAKE OFF ALTN: XXXX"
